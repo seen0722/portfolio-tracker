@@ -1,0 +1,6 @@
+yfinance
+pandas
+currencyconverter
+matplotlib
+pytest
+requests
