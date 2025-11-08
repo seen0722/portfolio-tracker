@@ -4,3 +4,4 @@ currencyconverter
 matplotlib
 pytest
 requests
+rich

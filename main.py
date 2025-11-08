@@ -16,6 +16,17 @@ from history_repository import HistoryRepository
 from portfolio_tracker import PortfolioCalculator, PortfolioResult
 from price_fetcher import PriceFetchError, PriceFetcher
 
+try:  # Optional rich-based rendering for nicer terminal output
+    from rich import box
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    console: Console | None = Console()
+except ImportError:  # pragma: no cover - fallback to plain text output
+    console = None
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -106,11 +117,32 @@ def print_summary(
     result: PortfolioResult,
 ) -> None:
     latest_row = history_df[history_df["date"] == record_date].iloc[-1]
-    print(f"Portfolio value on {record_date}")
-    print(f"  Total USD: ${latest_row['total_usd']:.2f}")
-    print(f"  Total TWD: NT${latest_row['total_twd']:.2f}")
-    print(f"  Daily return: {latest_row['daily_return_pct']:.2f}%")
-    print(f"[INFO] {fetcher.describe_sources()}")
+    if console:
+        daily_return = latest_row["daily_return_pct"]
+        daily_style = "green" if daily_return >= 0 else "red"
+        summary = Table.grid(padding=(0, 2))
+        summary.add_column(justify="right", style="bold cyan")
+        summary.add_column(justify="left")
+        summary.add_row("Total USD", f"${latest_row['total_usd']:.2f}")
+        summary.add_row("Total TWD", f"NT${latest_row['total_twd']:.2f}")
+        summary.add_row(
+            "Daily return",
+            Text(f"{daily_return:.2f}%", style=daily_style),
+        )
+        console.print(
+            Panel(
+                summary,
+                title=f"Portfolio Snapshot · {record_date}",
+                border_style="cyan",
+            )
+        )
+        console.print(Text(fetcher.describe_sources(), style="yellow"))
+    else:
+        print(f"Portfolio value on {record_date}")
+        print(f"  Total USD: ${latest_row['total_usd']:.2f}")
+        print(f"  Total TWD: NT${latest_row['total_twd']:.2f}")
+        print(f"  Daily return: {latest_row['daily_return_pct']:.2f}%")
+        print(f"[INFO] {fetcher.describe_sources()}")
     print_breakdown(result)
 
 
@@ -150,6 +182,40 @@ def simulate_history(
 def print_breakdown(result: PortfolioResult) -> None:
     if not result.positions:
         return
+    if console:
+        table = Table(
+            title="明細（USD/TWD 已換算）",
+            box=box.SIMPLE_HEAVY,
+            highlight=True,
+        )
+        table.add_column("類型", style="cyan", no_wrap=True)
+        table.add_column("標的/貨幣", style="bold")
+        table.add_column("數量", justify="right")
+        table.add_column("單價", justify="right")
+        table.add_column("幣別", justify="right")
+        table.add_column("價值(USD)", justify="right")
+        table.add_column("價值(TWD)", justify="right")
+        table.add_column("佔比%", justify="right")
+        for pos in result.positions:
+            quantity = f"{pos.quantity:.4f}" if pos.quantity is not None else "-"
+            if pos.category == "cash":
+                unit_price = "-"
+            else:
+                unit_price = f"{pos.unit_price:.4f}" if pos.unit_price is not None else "-"
+            table.add_row(
+                pos.category,
+                pos.name,
+                quantity,
+                unit_price,
+                pos.price_currency or "-",
+                f"{pos.value_usd:,.2f}",
+                f"{pos.value_twd:,.2f}",
+                f"{pos.portfolio_pct:.2f}",
+            )
+        console.print(table)
+        console.print()
+        return
+
     print("\n明細（USD/TWD 已換算）：")
     header = (
         f"{'類型':<8}{'標的/貨幣':<15}{'數量':>10}{'單價':>12}{'幣別':>8}"

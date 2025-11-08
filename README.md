@@ -17,9 +17,21 @@
    ```bash
    pip install -r requirements.txt
    ```
+4. （可選）讓一鍵腳本可執行：
+   ```bash
+   chmod +x run_portfolio.sh
+   ```
 
 ## 執行每日追蹤
 `main.py` 會讀取 `portfolio.json`，透過 `PriceFetcher` 從 Yahoo Finance、Stooq 或 `price_overrides.json` 取得報價，並利用 `CurrencyConverter` 進行美元與新台幣換算。最後把結果寫入 `history.csv`，若同日資料已存在則覆蓋並重新計算每日報酬率。
+
+推薦使用 `run_portfolio.sh`，它會自動建立虛擬環境、安裝依賴並轉呼叫 `main.py`，可把原本給 `main.py` 的參數原封不動傳入：
+
+```bash
+./run_portfolio.sh --dry-run --overrides-only
+```
+
+若你想自行控制虛擬環境，也可直接呼叫 Python：
 
 ```bash
 python3.13 main.py \
@@ -38,6 +50,8 @@ python3.13 main.py \
 - `--overrides-only`：僅使用離線覆寫價，不連線。
 - `--dry-run`：只計算，不寫入 `history.csv`。
 - `-v / -vv`：增加日誌資訊（INFO / DEBUG）。
+
+終端輸出已整合 [Rich](https://github.com/Textualize/rich) 的表格與彩色面板，讓總覽與持倉明細更易讀；若環境未安裝 Rich，仍會退回純文字格式。
 
 ## 寄送每日報表
 將 `email_report.py` 檔案最上方的寄件者、收件者與密碼變數改為自己的 SMTP 設定後，執行：
