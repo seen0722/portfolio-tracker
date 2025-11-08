@@ -16,6 +16,7 @@ import yfinance as yf
 logger = logging.getLogger(__name__)
 
 STOOQ_URL = "https://stooq.com/q/d/l/"
+TWSE_URL = "https://mis.twse.com.tw/stock/api/getStockInfo.jsp"
 
 
 class PriceFetchError(RuntimeError):
@@ -66,6 +67,12 @@ class PriceFetcher:
             if price is not None:
                 self.online_sources_used.add("Yahoo Finance")
                 logger.info("Using Yahoo Finance price for %s: %.4f", symbol, price)
+                return price
+
+            price = self._fetch_twse(symbol)
+            if price is not None:
+                self.online_sources_used.add("TWSE")
+                logger.info("Using TWSE price for %s: %.4f", symbol, price)
                 return price
 
             price = self._fetch_stooq(symbol)
@@ -126,6 +133,39 @@ class PriceFetcher:
         df["Date"] = pd.to_datetime(df["Date"])
         df.sort_values("Date", inplace=True)
         return float(df["Close"].iloc[-1])
+
+    @staticmethod
+    def _fetch_twse(symbol: str) -> Optional[float]:
+        """Fetch near-real-time price via TWSE API for Taiwan-listed tickers."""
+        if ".TW" not in symbol.upper():
+            return None
+        ticker = symbol.upper().replace(".TW", "")
+        params = {"ex_ch": f"tse_{ticker}.tw"}
+        headers = {"User-Agent": "Mozilla/5.0"}
+        try:
+            response = requests.get(TWSE_URL, params=params, headers=headers, timeout=5)
+            response.raise_for_status()
+            payload = response.json()
+        except Exception as exc:
+            logger.debug("TWSE fetch failed for %s: %s", symbol, exc)
+            return None
+
+        msg_array = payload.get("msgArray")
+        if not msg_array:
+            logger.debug("TWSE returned empty msgArray for %s", symbol)
+            return None
+
+        quote = msg_array[0]
+        raw_price = quote.get("z") or quote.get("p") or quote.get("y")
+        if not raw_price or raw_price in {"-", "—", "—-"}:
+            logger.debug("TWSE returned invalid price for %s: %s", symbol, raw_price)
+            return None
+
+        try:
+            return float(raw_price)
+        except ValueError as exc:
+            logger.debug("Failed to parse TWSE price for %s: %s", symbol, exc)
+            return None
 
     def describe_sources(self) -> str:
         """Human readable description of data sources used."""

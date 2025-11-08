@@ -23,7 +23,7 @@
    ```
 
 ## 執行每日追蹤
-`main.py` 會讀取 `portfolio.json`，透過 `PriceFetcher` 從 Yahoo Finance、Stooq 或 `price_overrides.json` 取得報價，並利用 `CurrencyConverter` 進行美元與新台幣換算。最後把結果寫入 `history.csv`，若同日資料已存在則覆蓋並重新計算每日報酬率。
+`main.py` 會讀取 `portfolio.json`，透過 `PriceFetcher` 從 Yahoo Finance、臺灣證交所 (TWSE) API、Stooq 或 `price_overrides.json` 取得報價，並利用 `CurrencyConverter` 進行美元與新台幣換算。最後把結果寫入 `history.csv`，若同日資料已存在則覆蓋並重新計算每日報酬率。
 
 推薦使用 `run_portfolio.sh`，它會自動建立虛擬環境、安裝依賴並轉呼叫 `main.py`，可把原本給 `main.py` 的參數原封不動傳入：
 
@@ -52,6 +52,36 @@ python3.13 main.py \
 - `-v / -vv`：增加日誌資訊（INFO / DEBUG）。
 
 終端輸出已整合 [Rich](https://github.com/Textualize/rich) 的表格與彩色面板，讓總覽與持倉明細更易讀；若環境未安裝 Rich，仍會退回純文字格式。
+
+## 啟動網頁儀表板
+`dashboard_app.py` 提供 Flask 版儀表板，可直接在本機預覽：
+
+```bash
+export FLASK_APP=dashboard_app.py
+flask run --reload
+```
+
+或使用 `gunicorn dashboard_app:app` 啟動 production 伺服器。可用的環境變數：
+
+| 變數 | 預設值 | 說明 |
+| ---- | ------ | ---- |
+| `PORTFOLIO_FILE` | `portfolio.json` | 投資組合設定檔路徑 |
+| `PRICE_OVERRIDES_FILE` | `price_overrides.json` | 離線報價檔路徑 |
+| `HISTORY_FILE` | `history.csv` | 歷史紀錄 CSV |
+| `OVERRIDES_ONLY` | `false` | 設為 `true` 時僅使用離線報價 |
+| `MAX_HISTORY_POINTS` | `90` | 圖表最多顯示的日數 |
+
+頁面會即時計算最新持倉，並使用 Chart.js 顯示歷史走勢與每日報酬率。
+
+## 部署到 Render
+倘若想要公開儀表板，可利用根目錄的 `render.yaml` 建立即時部署：
+
+1. 更新 GitHub repo，確保 `portfolio.json`、`history.csv` 等檔案包含在版本控制或改為引用外部儲存位置。
+2. 登入 [Render](https://render.com) 並建立 New + Blueprint，指向該 repo。
+3. Render 會讀取 `render.yaml`，自動安裝需求並以 `gunicorn dashboard_app:app` 啟動服務。
+4. 可視需求於 Render 介面覆寫環境變數（例如改用只限離線報價的 `OVERRIDES_ONLY=true`）。
+
+> Render 免費方案會在服務閒置時自動休眠，首次喚醒可能需數秒；若要保存 `history.csv` 的最新狀態，可建立 Persistent Disk 或改用雲端資料庫儲存歷史紀錄。
 
 ## 寄送每日報表
 將 `email_report.py` 檔案最上方的寄件者、收件者與密碼變數改為自己的 SMTP 設定後，執行：

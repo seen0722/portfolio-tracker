@@ -5,3 +5,5 @@ matplotlib
 pytest
 requests
 rich
+flask
+gunicorn

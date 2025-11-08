@@ -3,7 +3,8 @@
     {"symbol": "GOOG", "shares": 55.04},
     {"symbol": "NVDA", "shares": 62},
     {"symbol": "QQQ", "shares": 104.57},
-     {"symbol": "4938.TW", "shares": 26000}
+    {"symbol": "4938.TW", "shares": 26000},
+    {"symbol": "00795B.TW", "shares": 10000}
   ],
   "cash": [
     {"currency": "USD", "amount": 0},

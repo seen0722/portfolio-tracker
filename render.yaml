@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: portfolio-dashboard
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn dashboard_app:app
+    envVars:
+      - key: PORTFOLIO_FILE
+        value: portfolio.json
+      - key: PRICE_OVERRIDES_FILE
+        value: price_overrides.json
+      - key: HISTORY_FILE
+        value: history.csv
+      - key: OVERRIDES_ONLY
+        value: "false"
+      - key: MAX_HISTORY_POINTS
+        value: "90"
