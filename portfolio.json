@@ -6,7 +6,7 @@
     {"symbol": "00795B.TWO", "shares": 26000}
   ],
   "cash": [
-    {"currency": "USD", "amount": 0},
+    {"currency": "USD", "amount": 70.64},
     {"currency": "TWD", "amount": 0}
   ]
 }
