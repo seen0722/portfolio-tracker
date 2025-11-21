@@ -88,6 +88,29 @@ flask run --reload
 
 > Render 免費方案會在服務閒置時自動休眠，首次喚醒可能需數秒；若要保存 `history.csv` 的最新狀態，可建立 Persistent Disk 或改用雲端資料庫儲存歷史紀錄。
 
+## 部署到 Vultr (Ubuntu VPS)
+若您擁有 Vultr 或其他 Ubuntu VPS，可使用專案內建的 `deploy.sh` 快速部署：
+
+1. **準備 VPS**：建立一個 Ubuntu 20.04 或 22.04 的實例。
+2. **上傳腳本**：將 `deploy.sh` 上傳到伺服器，或直接在伺服器上建立該檔案。
+3. **執行部署**：
+   ```bash
+   # 賦予執行權限
+   chmod +x deploy.sh
+   
+   # 執行腳本 (需 sudo 權限)
+   # 用法: sudo ./deploy.sh <GitHub_Repo_URL> <Server_IP_or_Domain>
+   sudo ./deploy.sh https://github.com/seen0722/portfolio-tracker.git 192.168.1.100
+   ```
+   
+腳本會自動完成以下工作：
+- 更新系統與安裝相依套件 (Python, Nginx, Git 等)
+- Clone 專案並建立虛擬環境
+- 設定 Systemd 服務以背景執行應用程式
+- 設定 Nginx 反向代理與防火牆
+
+部署完成後，即可透過瀏覽器訪問 `http://<Server_IP>`。
+
 ## 寄送每日報表
 將 `email_report.py` 檔案最上方的寄件者、收件者與密碼變數改為自己的 SMTP 設定後，執行：
 
