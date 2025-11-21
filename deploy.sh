@@ -15,7 +15,7 @@ echo ">>> Updating system..."
 apt update && apt upgrade -y
 
 echo ">>> Installing dependencies..."
-apt install -y python3-pip python3-venv git nginx ufw certbot python3-certbot-nginx
+apt install -y python3-pip python3-venv git nginx ufw
 
 echo ">>> Setting up application directory..."
 cd /var/www
@@ -27,6 +27,9 @@ else
     git clone "$REPO_URL" portfolio-tracker
     cd portfolio-tracker
 fi
+
+echo ">>> Setting up HTTPS with Certbot..."
+certbot --nginx -d "$DOMAIN" --noninteractive --agree-tos -m your-email@example.com # Replace with your actual email
 
 echo ">>> Setting up Python environment..."
 python3 -m venv .venv
@@ -77,8 +80,5 @@ echo ">>> Configuring Firewall..."
 ufw allow 'Nginx Full'
 ufw allow OpenSSH
 ufw --force enable
-
-echo ">>> Setting up HTTPS with Certbot..."
-certbot --nginx -d $DOMAIN -d www.$DOMAIN
 
 echo ">>> Deployment Complete! Visit http://$DOMAIN"
