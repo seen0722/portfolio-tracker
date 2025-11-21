@@ -8,13 +8,13 @@ from datetime import date
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-from flask import Flask, abort, render_template, request
+from flask import Flask, abort, redirect, render_template, request, url_for
 import pandas as pd
 
 from history_repository import HistoryRepository
 from portfolio_tracker import PortfolioCalculator
 from price_fetcher import PriceFetchError, PriceFetcher
-from main import load_portfolio, simulate_history
+from main import load_portfolio, save_portfolio, simulate_history
 
 
 PORTFOLIO_FILE = Path(os.environ.get("PORTFOLIO_FILE", "portfolio.json"))
@@ -96,6 +96,52 @@ def _prepare_dashboard(requested_date: str | None) -> Dict[str, object]:
 def dashboard() -> str:
     context = _prepare_dashboard(request.args.get("date"))
     return render_template("dashboard.html", **context)
+
+
+@app.route("/edit", methods=["GET", "POST"])
+def edit_portfolio() -> str:
+    if request.method == "POST":
+        # Reconstruct portfolio from form data
+        new_portfolio: Dict[str, List[Dict[str, object]]] = {"stocks": [], "cash": []}
+        
+        # Process stocks
+        symbols = request.form.getlist("stock_symbol[]")
+        shares = request.form.getlist("stock_shares[]")
+        costs = request.form.getlist("stock_cost[]")
+        
+        for s, sh, c in zip(symbols, shares, costs):
+            if s and sh:  # Basic validation
+                new_portfolio["stocks"].append({
+                    "symbol": s.strip().upper(),
+                    "shares": float(sh),
+                    "average_cost": float(c) if c else 0.0
+                })
+
+        # Process cash
+        currencies = request.form.getlist("cash_currency[]")
+        amounts = request.form.getlist("cash_amount[]")
+        
+        for cur, amt in zip(currencies, amounts):
+            if cur and amt:
+                new_portfolio["cash"].append({
+                    "currency": cur.strip().upper(),
+                    "amount": float(amt)
+                })
+
+        try:
+            save_portfolio(PORTFOLIO_FILE, new_portfolio)
+            return redirect(url_for("dashboard", date=date.today().isoformat()))
+        except Exception as e:
+            abort(500, f"Failed to save portfolio: {e}")
+            
+    # GET request
+    try:
+        portfolio = load_portfolio(PORTFOLIO_FILE)
+    except (FileNotFoundError, ValueError):
+        portfolio = {"stocks": [], "cash": []}
+        
+    return render_template("edit_portfolio.html", portfolio=portfolio)
+
 
 
 @app.get("/healthz")

@@ -100,6 +100,13 @@ def load_portfolio(path: Path) -> Dict[str, Any]:
     return data
 
 
+def save_portfolio(path: Path, data: Dict[str, Any]) -> None:
+    """Save the portfolio data to a JSON file."""
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(data, handle, indent=2, ensure_ascii=False)
+
+
+
 def resolve_date(date_override: str | None) -> str:
     if not date_override:
         return date.today().isoformat()

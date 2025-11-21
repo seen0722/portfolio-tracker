@@ -1,12 +1,39 @@
 {
   "stocks": [
-    {"symbol": "GOOG", "shares": 95.04, "average_cost": 0.0},
-    {"symbol": "NVDA", "shares": 67, "average_cost": 0.0},
-    {"symbol": "QQQ", "shares": 84.63, "average_cost": 0.0},
-    {"symbol": "00795B.TWO", "shares": 26000, "average_cost": 0.0}
+    {
+      "symbol": "GOOG",
+      "shares": 95.04,
+      "average_cost": 244.77
+    },
+    {
+      "symbol": "NVDA",
+      "shares": 67.0,
+      "average_cost": 188.14
+    },
+    {
+      "symbol": "QQQ",
+      "shares": 84.63,
+      "average_cost": 526.14
+    },
+    {
+      "symbol": "00795B.TWO",
+      "shares": 26000.0,
+      "average_cost": 27.24
+    },
+    {
+      "symbol": "GOOGL",
+      "shares": 5.0,
+      "average_cost": 100.0
+    }
   ],
   "cash": [
-    {"currency": "USD", "amount": 70.64},
-    {"currency": "TWD", "amount": 0}
+    {
+      "currency": "USD",
+      "amount": 70.64
+    },
+    {
+      "currency": "TWD",
+      "amount": 0.0
+    }
   ]
 }
