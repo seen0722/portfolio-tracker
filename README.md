@@ -131,8 +131,9 @@ flask run --reload
 - Clone 專案並建立虛擬環境
 - 設定 Systemd 服務以背景執行應用程式
 - 設定 Nginx 反向代理與防火牆
+- 自動執行 Certbot 申請 SSL 憑證 (HTTPS)
 
-部署完成後，即可透過瀏覽器訪問 `http://<Server_IP>`。
+部署完成後，即可透過瀏覽器訪問 `https://<Server_Domain>`。
 
 ## 寄送每日報表
 將 `email_report.py` 檔案最上方的寄件者、收件者與密碼變數改為自己的 SMTP 設定後，執行：

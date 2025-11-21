@@ -15,7 +15,7 @@ echo ">>> Updating system..."
 apt update && apt upgrade -y
 
 echo ">>> Installing dependencies..."
-apt install -y python3-pip python3-venv git nginx ufw
+apt install -y python3-pip python3-venv git nginx ufw certbot python3-certbot-nginx
 
 echo ">>> Setting up application directory..."
 cd /var/www
@@ -77,5 +77,8 @@ echo ">>> Configuring Firewall..."
 ufw allow 'Nginx Full'
 ufw allow OpenSSH
 ufw --force enable
+
+echo ">>> Setting up HTTPS with Certbot..."
+certbot --nginx -d $DOMAIN -d www.$DOMAIN
 
 echo ">>> Deployment Complete! Visit http://$DOMAIN"
