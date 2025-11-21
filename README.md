@@ -51,6 +51,25 @@ python3.13 main.py \
 - `--dry-run`：只計算，不寫入 `history.csv`。
 - `-v / -vv`：增加日誌資訊（INFO / DEBUG）。
 
+## 自動化排程
+若要每日自動更新資料，可使用 `crontab` 設定排程。
+
+1. 開啟 crontab 編輯器：
+   ```bash
+   crontab -e
+   ```
+2. 加入以下指令（例如每天晚上 11:00 執行）：
+   ```bash
+   0 23 * * * /path/to/portfolio-tracker/run_portfolio.sh >> /path/to/portfolio-tracker/cron.log 2>&1
+   ```
+   請將 `/path/to/portfolio-tracker` 替換為您的實際專案路徑。
+
+   **針對 VPS (使用 deploy.sh 部署者)：**
+   專案通常位於 `/var/www/portfolio-tracker`，因此指令為：
+   ```bash
+   0 23 * * * /var/www/portfolio-tracker/run_portfolio.sh >> /var/www/portfolio-tracker/cron.log 2>&1
+   ```
+
 終端輸出已整合 [Rich](https://github.com/Textualize/rich) 的表格與彩色面板，讓總覽與持倉明細更易讀；若環境未安裝 Rich，仍會退回純文字格式。
 
 ## 啟動網頁儀表板
