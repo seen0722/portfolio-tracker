@@ -129,6 +129,13 @@ def print_summary(
             "Daily return",
             Text(f"{daily_return:.2f}%", style=daily_style),
         )
+        
+        pl_style = "green" if result.totals.unrealized_pl_usd >= 0 else "red"
+        summary.add_row(
+            "Unrealized P/L",
+            Text(f"${result.totals.unrealized_pl_usd:,.2f} ({result.totals.roi_pct:.2f}%)", style=pl_style),
+        )
+
         console.print(
             Panel(
                 summary,
@@ -142,6 +149,7 @@ def print_summary(
         print(f"  Total USD: ${latest_row['total_usd']:.2f}")
         print(f"  Total TWD: NT${latest_row['total_twd']:.2f}")
         print(f"  Daily return: {latest_row['daily_return_pct']:.2f}%")
+        print(f"  Unrealized P/L: ${result.totals.unrealized_pl_usd:,.2f} ({result.totals.roi_pct:.2f}%)")
         print(f"[INFO] {fetcher.describe_sources()}")
     print_breakdown(result)
 
@@ -195,13 +203,25 @@ def print_breakdown(result: PortfolioResult) -> None:
         table.add_column("幣別", justify="right")
         table.add_column("價值(USD)", justify="right")
         table.add_column("價值(TWD)", justify="right")
+        table.add_column("成本(USD)", justify="right")
+        table.add_column("損益(USD)", justify="right")
+        table.add_column("報酬率%", justify="right")
         table.add_column("佔比%", justify="right")
         for pos in result.positions:
             quantity = f"{pos.quantity:.4f}" if pos.quantity is not None else "-"
             if pos.category == "cash":
                 unit_price = "-"
+                avg_cost = "-"
+                pl_usd = "-"
+                roi = "-"
+                pl_style = ""
             else:
                 unit_price = f"{pos.unit_price:.4f}" if pos.unit_price is not None else "-"
+                avg_cost = f"{pos.average_cost:.4f}" if pos.average_cost is not None else "-"
+                pl_usd = f"{pos.unrealized_pl_usd:,.2f}"
+                roi = f"{pos.roi_pct:.2f}%"
+                pl_style = "green" if pos.unrealized_pl_usd >= 0 else "red"
+
             table.add_row(
                 pos.category,
                 pos.name,
@@ -210,6 +230,9 @@ def print_breakdown(result: PortfolioResult) -> None:
                 pos.price_currency or "-",
                 f"{pos.value_usd:,.2f}",
                 f"{pos.value_twd:,.2f}",
+                avg_cost,
+                Text(pl_usd, style=pl_style),
+                Text(roi, style=pl_style),
                 f"{pos.portfolio_pct:.2f}",
             )
         console.print(table)
@@ -219,7 +242,7 @@ def print_breakdown(result: PortfolioResult) -> None:
     print("\n明細（USD/TWD 已換算）：")
     header = (
         f"{'類型':<8}{'標的/貨幣':<15}{'數量':>10}{'單價':>12}{'幣別':>8}"
-        f"{'價值(USD)':>14}{'價值(TWD)':>14}{'佔比%':>10}"
+        f"{'價值(USD)':>14}{'價值(TWD)':>14}{'損益(USD)':>14}{'報酬率%':>10}{'佔比%':>10}"
     )
     print(header)
     print("-" * len(header))
@@ -227,8 +250,13 @@ def print_breakdown(result: PortfolioResult) -> None:
         quantity = f"{pos.quantity:.4f}" if pos.quantity is not None else "-"
         if pos.category == "cash":
             unit_price = "-"
+            pl_usd = "-"
+            roi = "-"
         else:
             unit_price = f"{pos.unit_price:.4f}" if pos.unit_price is not None else "-"
+            pl_usd = f"{pos.unrealized_pl_usd:,.2f}"
+            roi = f"{pos.roi_pct:.2f}%"
+
         line = (
             f"{pos.category:<8}"
             f"{pos.name:<15}"
@@ -237,6 +265,8 @@ def print_breakdown(result: PortfolioResult) -> None:
             f"{(pos.price_currency or '-'):>8}"
             f"{pos.value_usd:>14.2f}"
             f"{pos.value_twd:>14.2f}"
+            f"{pl_usd:>14}"
+            f"{roi:>10}"
             f"{pos.portfolio_pct:>10.2f}"
         )
         print(line)

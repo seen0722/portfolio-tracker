@@ -1,6 +1,6 @@
 # 投資組合追蹤器
 
-追蹤同時包含美元與新台幣的投資組合，保存每日總價值，並以電子郵件寄送報表。
+追蹤同時包含美元與新台幣的投資組合，保存每日總價值，計算未實現損益 (P/L) 與報酬率 (ROI)，並以電子郵件寄送報表。
 
 ## 先決條件
 - 建議使用 Python 3.9 以上版本
@@ -23,7 +23,7 @@
    ```
 
 ## 執行每日追蹤
-`main.py` 會讀取 `portfolio.json`，透過 `PriceFetcher` 從 Yahoo Finance、臺灣證交所 (TWSE) API、Stooq 或 `price_overrides.json` 取得報價，並利用 `CurrencyConverter` 進行美元與新台幣換算。最後把結果寫入 `history.csv`，若同日資料已存在則覆蓋並重新計算每日報酬率。
+`main.py` 會讀取 `portfolio.json`，透過 `PriceFetcher` 從 Yahoo Finance、臺灣證交所 (TWSE) API、Stooq 或 `price_overrides.json` 取得報價，並利用 `CurrencyConverter` 進行美元與新台幣換算。最後計算總市值、成本與損益，將結果寫入 `history.csv`。
 
 推薦使用 `run_portfolio.sh`，它會自動建立虛擬環境、安裝依賴並轉呼叫 `main.py`，可把原本給 `main.py` 的參數原封不動傳入：
 
@@ -71,7 +71,12 @@ flask run --reload
 | `OVERRIDES_ONLY` | `false` | 設為 `true` 時僅使用離線報價 |
 | `MAX_HISTORY_POINTS` | `90` | 圖表最多顯示的日數 |
 
-頁面會即時計算最新持倉，並使用 Chart.js 顯示歷史走勢與每日報酬率。
+頁面會即時計算最新持倉，並顯示：
+- **資產歷史走勢圖**
+- **資產配置圓餅圖** (Asset Allocation)
+- **詳細損益表** (包含成本、未實現損益、報酬率)
+
+介面採用現代化 Dark Mode 設計，並支援手機版面 (RWD)。
 
 ## 部署到 Render
 倘若想要公開儀表板，可利用根目錄的 `render.yaml` 建立即時部署：
@@ -93,7 +98,27 @@ python3.13 email_report.py
 郵件內容包含最新總資產、美金與台幣數值、當日報酬率，以及最近五筆歷史紀錄。
 
 ## 自訂投資組合
-編輯 `portfolio.json` 即可調整持股與現金。股票代碼結尾為 `.TW` 時會視為台股，以新台幣表示價值並轉換成美金；現金則以 ISO 貨幣代碼表示。
+編輯 `portfolio.json` 即可調整持股與現金。股票代碼結尾為 `.TW` 時會視為台股。
+
+為了計算損益，請在每個持股中加入 `average_cost` (平均成本)：
+
+```json
+{
+  "stocks": [
+    {
+      "symbol": "GOOG",
+      "shares": 95.04,
+      "average_cost": 105.50
+    },
+    {
+      "symbol": "2330.TW",
+      "shares": 1000,
+      "average_cost": 500.0
+    }
+  ],
+  "cash": [ ... ]
+}
+```
 
 ## 資料檔案
 `history.csv` 位於專案根目錄，每筆資料包含：

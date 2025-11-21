@@ -71,6 +71,10 @@ def _prepare_dashboard(requested_date: str | None) -> Dict[str, object]:
     summary_row = history_df[history_df["date"] == record_date].iloc[-1]
     chart_labels, chart_totals, chart_returns = _chart_payload(history_df)
 
+    # Prepare allocation data for Pie Chart
+    allocation_labels = [pos.name for pos in result.positions if pos.portfolio_pct > 0]
+    allocation_data = [round(pos.portfolio_pct, 2) for pos in result.positions if pos.portfolio_pct > 0]
+
     return {
         "result": result,
         "record_date": record_date,
@@ -82,6 +86,8 @@ def _prepare_dashboard(requested_date: str | None) -> Dict[str, object]:
         "history_labels": chart_labels,
         "history_totals": chart_totals,
         "history_returns": chart_returns,
+        "allocation_labels": allocation_labels,
+        "allocation_data": allocation_data,
         "price_sources": fetcher.describe_sources(),
     }
 

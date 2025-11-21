@@ -1,9 +1,9 @@
 {
   "stocks": [
-    {"symbol": "GOOG", "shares": 95.04},
-    {"symbol": "NVDA", "shares": 67},
-    {"symbol": "QQQ", "shares": 84.63},
-    {"symbol": "00795B.TWO", "shares": 26000}
+    {"symbol": "GOOG", "shares": 95.04, "average_cost": 0.0},
+    {"symbol": "NVDA", "shares": 67, "average_cost": 0.0},
+    {"symbol": "QQQ", "shares": 84.63, "average_cost": 0.0},
+    {"symbol": "00795B.TWO", "shares": 26000, "average_cost": 0.0}
   ],
   "cash": [
     {"currency": "USD", "amount": 70.64},
