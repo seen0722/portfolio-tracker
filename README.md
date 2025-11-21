@@ -93,14 +93,18 @@ flask run --reload
 
 1. **準備 VPS**：建立一個 Ubuntu 20.04 或 22.04 的實例。
 2. **上傳腳本**：將 `deploy.sh` 上傳到伺服器，或直接在伺服器上建立該檔案。
+   ```bash
+   scp deploy.sh root@<your_server_ip>:~/
+   ```
 3. **執行部署**：
+   SSH 進入伺服器後執行：
    ```bash
    # 賦予執行權限
    chmod +x deploy.sh
    
    # 執行腳本 (需 sudo 權限)
    # 用法: sudo ./deploy.sh <GitHub_Repo_URL> <Server_IP_or_Domain>
-   sudo ./deploy.sh https://github.com/seen0722/portfolio-tracker.git 192.168.1.100
+   sudo ./deploy.sh https://github.com/seen0722/portfolio-tracker.git zmlab.io
    ```
    
 腳本會自動完成以下工作：
