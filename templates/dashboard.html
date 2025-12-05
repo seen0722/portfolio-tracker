@@ -10,6 +10,26 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -1000px 0; }
+      100% { background-position: 1000px 0; }
+    }
+
+    @keyframes glow {
+      0%, 100% { box-shadow: 0 0 10px rgba(56, 189, 248, 0), 0 8px 24px rgba(0, 0, 0, 0.15); }
+      50% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.4), 0 12px 32px rgba(56, 189, 248, 0.1); }
+    }
+
     :root {
       color-scheme: light dark;
       --bg: #0f172a;
@@ -17,10 +37,13 @@
       --text: #e2e8f0;
       --muted: #94a3b8;
       --accent: #38bdf8;
+      --accent-secondary: #0ea5e9;
       --positive: #22c55e;
       --negative: #f43f5e;
       --card-bg: rgba(30, 41, 59, 0.7);
       --border: rgba(255, 255, 255, 0.1);
+      --border-light: rgba(255, 255, 255, 0.05);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     body {
@@ -29,6 +52,7 @@
       background: radial-gradient(circle at top left, #1e293b, #0f172a);
       color: var(--text);
       min-height: 100vh;
+      animation: fadeIn 0.6s ease-out;
     }
 
     .container {
@@ -43,53 +67,74 @@
       justify-content: space-between;
       align-items: center;
       gap: 1rem;
+      margin-bottom: 1rem;
+      animation: slideUp 0.5s ease-out;
     }
 
     header h1 {
-      font-size: 1.8rem;
+      font-size: 2.2rem;
       margin: 0;
+      font-weight: 700;
+      letter-spacing: -0.02em;
     }
 
     .summary {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 1.5rem;
-      margin: 2rem 0;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 2rem;
+      margin: 2.5rem 0;
+      animation: slideUp 0.6s ease-out 0.1s backwards;
     }
 
     .card {
-      background: var(--card-bg);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(56, 189, 248, 0.2);
       border-radius: 1rem;
-      padding: 1.5rem;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-      transition: transform 0.2s;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      transition: var(--transition);
+      position: relative;
+      overflow: visible;
     }
 
     .card:hover {
-      transform: translateY(-2px);
+      transform: translateY(-4px);
+      border-color: rgba(56, 189, 248, 0.5);
+      box-shadow: 0 8px 30px rgba(56, 189, 248, 0.1);
+      background: rgba(30, 41, 59, 0.6);
     }
 
     .card h3 {
-      margin: 0 0 0.5rem;
-      font-size: 0.95rem;
+      margin: 0 0 1.2rem;
+      font-size: 0.9rem;
       color: var(--muted);
-      letter-spacing: 0.05em;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 600;
     }
 
     .card p {
       margin: 0;
-      font-size: 1.8rem;
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #48d1cc;
+      line-height: 1.3;
+    }
+
+    .daily-return {
+      font-size: 1.2rem !important;
+      -webkit-text-fill-color: unset !important;
+      background: none !important;
+      margin-top: 0.8rem;
       font-weight: 600;
     }
 
     .daily-return.positive {
-      color: var(--positive);
+      color: #10b981;
     }
 
     .daily-return.negative {
-      color: var(--negative);
+      color: #ef4444;
     }
 
     .charts-grid {
@@ -97,22 +142,50 @@
       grid-template-columns: 2fr 1fr;
       gap: 1.5rem;
       margin-bottom: 2rem;
+      animation: slideUp 0.7s ease-out 0.2s backwards;
     }
 
     .chart-panel {
-      background: var(--card-bg);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(56, 189, 248, 0.2);
       border-radius: 1rem;
-      padding: 1.5rem;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      padding: 1.75rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+      transition: var(--transition);
+      position: relative;
+      overflow: visible;
+    }
+
+    .chart-panel:hover {
+      border-color: rgba(56, 189, 248, 0.5);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 30px rgba(56, 189, 248, 0.1);
+      background: rgba(30, 41, 59, 0.6);
+    }
+
+    .chart-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.05) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    .chart-panel:hover::before {
+      opacity: 1;
     }
 
     .chart-title {
-      margin: 0 0 1rem;
-      font-size: 1.1rem;
-      font-weight: 600;
+      margin: 0 0 1.5rem;
+      font-size: 1.2rem;
+      font-weight: 700;
       color: var(--text);
+      letter-spacing: -0.01em;
     }
 
     @media (max-width: 1024px) {
@@ -121,45 +194,88 @@
       }
     }
 
+    .edit-btn {
+      background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+      color: var(--bg);
+      padding: 0.65rem 1.5rem;
+      border-radius: 0.5rem;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.9rem;
+      transition: var(--transition);
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+      letter-spacing: 0.05em;
+    }
+
+    .edit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(56, 189, 248, 0.4);
+    }
+
+    .edit-btn:active {
+      transform: translateY(0);
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
-      background: var(--panel);
-      border-radius: 0.75rem;
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(30, 41, 59, 0.3) 100%);
+      border-radius: 1.25rem;
       overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.8s ease-out 0.3s backwards;
+      border: 1px solid var(--border);
     }
 
     th,
     td {
-      padding: 0.85rem;
+      padding: 1.1rem 0.95rem;
       text-align: right;
+      transition: background 0.2s ease;
+      font-size: 0.95rem;
     }
 
     th {
       text-transform: uppercase;
-      font-size: 0.75rem;
-      letter-spacing: 0.08em;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
       color: var(--muted);
-      background: rgb(255 255 255 / 4%);
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.1) 0%, rgba(56, 189, 248, 0.05) 100%);
+      border-bottom: 2px solid var(--border);
+      font-weight: 700;
     }
 
     td:first-child,
     th:first-child {
       text-align: left;
+      padding-left: 1.5rem;
+    }
+
+    tbody tr {
+      transition: all 0.2s ease;
+      border-bottom: 1px solid var(--border-light);
     }
 
     tbody tr:nth-child(even) {
-      background: rgb(255 255 255 / 2%);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    tbody tr:hover {
+      background: rgba(56, 189, 248, 0.1);
+      border-bottom-color: var(--accent);
     }
 
     tbody tr:not(:last-child) {
-      border-bottom: 1px solid rgb(255 255 255 / 6%);
+      border-bottom: 1px solid var(--border-light);
     }
 
     .sources {
       color: var(--muted);
-      font-size: 0.9rem;
+      font-size: 1rem;
       margin-top: 0.5rem;
+      font-weight: 500;
     }
 
     @media (max-width: 640px) {
@@ -178,8 +294,7 @@
       <h1>投資組合儀表板</h1>
       <div style="display: flex; gap: 1rem; align-items: center;">
         <div class="sources">資料日期：{{ record_date }} ｜ {{ price_sources }}</div>
-        <a href="/edit"
-          style="background: var(--accent); color: #0f172a; padding: 0.5rem 1rem; border-radius: 0.25rem; text-decoration: none; font-weight: 600; font-size: 0.9rem;">編輯組合</a>
+        <a href="/edit" class="edit-btn">編輯組合</a>
       </div>
     </header>
 
