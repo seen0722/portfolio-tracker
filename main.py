@@ -4,17 +4,11 @@
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict
 
 import pandas as pd
-
-from history_repository import HistoryRepository
-from portfolio_tracker import PortfolioCalculator, PortfolioResult
-from price_fetcher import PriceFetchError, PriceFetcher
 
 try:  # Optional rich-based rendering for nicer terminal output
     from rich import box
@@ -26,6 +20,11 @@ try:  # Optional rich-based rendering for nicer terminal output
     console: Console | None = Console()
 except ImportError:  # pragma: no cover - fallback to plain text output
     console = None
+
+from app.domain.models import Portfolio, PortfolioResult
+from app.infrastructure.market_data import PriceFetchError, PriceFetcher
+from app.infrastructure.persistence import HistoryRepository, PortfolioRepository
+from app.services.portfolio_service import PortfolioService
 
 
 def parse_args() -> argparse.Namespace:
@@ -86,25 +85,6 @@ def configure_logging(verbosity: int) -> None:
         level=level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-
-
-def load_portfolio(path: Path) -> Dict[str, Any]:
-    if not path.exists():
-        raise FileNotFoundError(f"Portfolio file not found: {path}")
-    with path.open("r", encoding="utf-8") as handle:
-        data = json.load(handle)
-    if not isinstance(data, dict):
-        raise ValueError("Portfolio file must contain a JSON object.")
-    data.setdefault("stocks", [])
-    data.setdefault("cash", [])
-    return data
-
-
-def save_portfolio(path: Path, data: Dict[str, Any]) -> None:
-    """Save the portfolio data to a JSON file."""
-    with path.open("w", encoding="utf-8") as handle:
-        json.dump(data, handle, indent=2, ensure_ascii=False)
-
 
 
 def resolve_date(date_override: str | None) -> str:
@@ -285,15 +265,18 @@ def main() -> None:
     configure_logging(args.verbose)
 
     record_date = resolve_date(args.date)
+    
+    # Use dependencies
     fetcher = PriceFetcher(
         overrides_path=args.overrides,
         allow_online=not args.overrides_only,
     )
-    calculator = PortfolioCalculator(fetcher)
-    repository = HistoryRepository(args.history)
+    calculator = PortfolioService(fetcher)
+    history_repo = HistoryRepository(args.history)
+    portfolio_repo = PortfolioRepository(args.portfolio)
 
     try:
-        portfolio = load_portfolio(args.portfolio)
+        portfolio = portfolio_repo.load()
     except Exception as exc:
         raise SystemExit(f"Failed to load portfolio file: {exc}") from exc
 
@@ -304,11 +287,11 @@ def main() -> None:
 
     if args.dry_run:
         print("Dry run - history.csv not updated.")
-        history_df = simulate_history(repository, record_date, result)
+        history_df = simulate_history(history_repo, record_date, result)
         print_summary(record_date, history_df, fetcher, result)
         return
 
-    history_df = repository.upsert(record_date, result.totals.usd, result.totals.twd)
+    history_df = history_repo.upsert(record_date, result.totals.usd, result.totals.twd)
     print_summary(record_date, history_df, fetcher, result)
 
 

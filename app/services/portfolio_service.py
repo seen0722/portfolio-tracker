@@ -1,63 +1,26 @@
-"""Portfolio valuation utilities."""
+"""Portfolio valuation service."""
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from typing import Dict, Iterable, List, Tuple
 
 from currency_converter import CurrencyConverter
 
-from price_fetcher import PriceFetchError, PriceFetcher
+from app.domain.models import (
+    Portfolio,
+    PortfolioResult,
+    PositionBreakdown,
+    Totals,
+    Stock,
+    Cash
+)
+from app.infrastructure.market_data import PriceFetchError, PriceFetcher
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Totals:
-    usd: float = 0.0
-    twd: float = 0.0
-    cost_usd: float = 0.0
-    cost_twd: float = 0.0
-    unrealized_pl_usd: float = 0.0
-    unrealized_pl_twd: float = 0.0
-    roi_pct: float = 0.0
-
-    def add(self, usd: float, twd: float, cost_usd: float, cost_twd: float) -> None:
-        self.usd += usd
-        self.twd += twd
-        self.cost_usd += cost_usd
-        self.cost_twd += cost_twd
-        self.unrealized_pl_usd = self.usd - self.cost_usd
-        self.unrealized_pl_twd = self.twd - self.cost_twd
-        self.roi_pct = (self.unrealized_pl_usd / self.cost_usd * 100.0) if self.cost_usd else 0.0
-
-
-@dataclass
-class PositionBreakdown:
-    name: str
-    category: str
-    value_usd: float
-    value_twd: float
-    portfolio_pct: float
-    quantity: float | None = None
-    unit_price: float | None = None
-    price_currency: str | None = None
-    average_cost: float | None = None
-    total_cost_usd: float = 0.0
-    total_cost_twd: float = 0.0
-    unrealized_pl_usd: float = 0.0
-    unrealized_pl_twd: float = 0.0
-    roi_pct: float = 0.0
-
-
-@dataclass
-class PortfolioResult:
-    totals: Totals
-    positions: List[PositionBreakdown]
-
-
-class PortfolioCalculator:
+class PortfolioService:
     """Calculate portfolio totals with currency conversion."""
 
     def __init__(self, price_fetcher: PriceFetcher) -> None:
@@ -67,15 +30,28 @@ class PortfolioCalculator:
             fallback_on_wrong_date=True,
         )
 
-    def calculate(self, portfolio: Dict[str, Iterable[Dict[str, object]]]) -> PortfolioResult:
+    def calculate(self, portfolio: Portfolio) -> PortfolioResult:
         totals = Totals()
         positions: List[PositionBreakdown] = []
-        for stock in portfolio.get("stocks", []):
+        
+        # Collect all symbols to fetch
+        stock_symbols = [s.symbol for s in portfolio.stocks]
+        # Cash currencies also need rates (e.g. USD=X, TWD=X, or pairs like USDTWD=X)
+        # The current implementation of _convert uses get_price internally.
+        # To fully optimize, we should pre-fetch currency pairs too.
+        # For now, let's optimize stocks first as they are the main latency source.
+        
+        prices = self.price_fetcher.get_prices(stock_symbols)
+        
+        for stock in portfolio.stocks:
+            # Pass pre-fetched price to _value_stock if possible, or let it use cache
+            # Since we populated the cache in get_prices, _value_stock calling get_price 
+            # will hit the cache instantly.
             usd, twd, cost_usd, cost_twd, breakdown = self._value_stock(stock)
             totals.add(usd, twd, cost_usd, cost_twd)
             positions.append(breakdown)
 
-        for cash in portfolio.get("cash", []):
+        for cash in portfolio.cash:
             usd, twd, cost_usd, cost_twd, breakdown = self._value_cash(cash)
             totals.add(usd, twd, cost_usd, cost_twd)
             positions.append(breakdown)
@@ -86,10 +62,10 @@ class PortfolioCalculator:
 
         return PortfolioResult(totals=totals, positions=positions)
 
-    def _value_stock(self, stock: Dict[str, object]) -> Tuple[float, float, float, float, PositionBreakdown]:
-        symbol = str(stock["symbol"])
-        shares = float(stock["shares"])
-        average_cost = float(stock.get("average_cost", 0.0))
+    def _value_stock(self, stock: Stock) -> Tuple[float, float, float, float, PositionBreakdown]:
+        symbol = stock.symbol
+        shares = stock.shares
+        average_cost = stock.average_cost
         price = self.price_fetcher.get_price(symbol)
 
         price_currency = "TWD" if ".TW" in symbol.upper() else "USD"
@@ -128,9 +104,9 @@ class PortfolioCalculator:
         )
         return value_usd, value_twd, total_cost_usd, total_cost_twd, breakdown
 
-    def _value_cash(self, cash: Dict[str, object]) -> Tuple[float, float, float, float, PositionBreakdown]:
-        currency = str(cash["currency"]).upper()
-        amount = float(cash["amount"])
+    def _value_cash(self, cash: Cash) -> Tuple[float, float, float, float, PositionBreakdown]:
+        currency = cash.currency.upper()
+        amount = cash.amount
         value_usd = self._convert(amount, currency, "USD")
         value_twd = self._convert(amount, currency, "TWD")
         

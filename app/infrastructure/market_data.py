@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import logging
+import time
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, List
 
 import pandas as pd
 import requests
@@ -32,6 +34,10 @@ class PriceFetcher:
     _overrides: Dict[str, float] = field(default_factory=dict, init=False)
     online_sources_used: Set[str] = field(default_factory=set, init=False)
     overrides_used: Set[str] = field(default_factory=set, init=False)
+    
+    # Simple in-memory cache: {symbol: (price, timestamp)}
+    _cache: Dict[str, tuple[float, float]] = field(default_factory=dict, init=False)
+    cache_ttl_seconds: int = 300  # 5 minutes
 
     def __post_init__(self) -> None:
         self._load_overrides()
@@ -62,35 +68,99 @@ class PriceFetcher:
 
     def get_price(self, symbol: str) -> float:
         """Retrieve the latest close price for the symbol."""
-        if self.allow_online:
-            price = self._fetch_yahoo(symbol)
-            if price is not None:
-                self.online_sources_used.add("Yahoo Finance")
-                logger.info("Using Yahoo Finance price for %s: %.4f", symbol, price)
+        # Check cache first
+        if symbol in self._cache:
+            price, timestamp = self._cache[symbol]
+            if time.time() - timestamp < self.cache_ttl_seconds:
+                logger.debug("Using cached price for %s: %.4f", symbol, price)
                 return price
 
-            price = self._fetch_twse(symbol)
-            if price is not None:
-                self.online_sources_used.add("TWSE")
-                logger.info("Using TWSE price for %s: %.4f", symbol, price)
-                return price
-
-            price = self._fetch_stooq(symbol)
-            if price is not None:
-                self.online_sources_used.add("Stooq")
-                logger.info("Using Stooq price for %s: %.4f", symbol, price)
-                return price
-
+        # Check overrides
         price = self._overrides.get(symbol)
         if price is not None:
             self.overrides_used.add(symbol)
             logger.info("Using local override price for %s: %.4f", symbol, price)
+            self._cache[symbol] = (price, time.time())
             return price
+
+        if self.allow_online:
+            price = self._fetch_online(symbol)
+            if price is not None:
+                self._cache[symbol] = (price, time.time())
+                return price
 
         raise PriceFetchError(
             f"No price data available for {symbol} "
             f"(online allowed={self.allow_online}, overrides found={bool(self._overrides)})"
         )
+
+    def get_prices(self, symbols: List[str]) -> Dict[str, float]:
+        """Fetch multiple prices in parallel."""
+        results = {}
+        to_fetch = []
+
+        # Check cache and overrides first
+        for symbol in symbols:
+            # Check cache
+            if symbol in self._cache:
+                price, timestamp = self._cache[symbol]
+                if time.time() - timestamp < self.cache_ttl_seconds:
+                    results[symbol] = price
+                    continue
+            
+            # Check overrides
+            if symbol in self._overrides:
+                price = self._overrides[symbol]
+                self.overrides_used.add(symbol)
+                results[symbol] = price
+                self._cache[symbol] = (price, time.time())
+                continue
+            
+            if self.allow_online:
+                to_fetch.append(symbol)
+
+        if not to_fetch:
+            return results
+
+        # Fetch remaining online in parallel
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_symbol = {
+                executor.submit(self._fetch_online, symbol): symbol 
+                for symbol in to_fetch
+            }
+            for future in concurrent.futures.as_completed(future_to_symbol):
+                symbol = future_to_symbol[future]
+                try:
+                    price = future.result()
+                    if price is not None:
+                        results[symbol] = price
+                        self._cache[symbol] = (price, time.time())
+                except Exception as exc:
+                    logger.error("Error fetching %s: %s", symbol, exc)
+
+        return results
+
+    def _fetch_online(self, symbol: str) -> Optional[float]:
+        """Try all online sources sequentially."""
+        price = self._fetch_yahoo(symbol)
+        if price is not None:
+            self.online_sources_used.add("Yahoo Finance")
+            logger.info("Using Yahoo Finance price for %s: %.4f", symbol, price)
+            return price
+
+        price = self._fetch_twse(symbol)
+        if price is not None:
+            self.online_sources_used.add("TWSE")
+            logger.info("Using TWSE price for %s: %.4f", symbol, price)
+            return price
+
+        price = self._fetch_stooq(symbol)
+        if price is not None:
+            self.online_sources_used.add("Stooq")
+            logger.info("Using Stooq price for %s: %.4f", symbol, price)
+            return price
+            
+        return None
 
     @staticmethod
     def _fetch_yahoo(symbol: str) -> Optional[float]:
