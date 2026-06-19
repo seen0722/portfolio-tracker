@@ -255,6 +255,14 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .event-row.soon .days { color: var(--neg); }
 .event-row .ename { font-weight: 700; }
 .event-row .enote { color: var(--muted); font-size: .8rem; margin-left: auto; text-align: right; }
+.corr-controls { display: flex; gap: 1rem; align-items: end; padding: 1.1rem 1.3rem .25rem; flex-wrap: wrap; }
+.corr-controls .field { min-width: 190px; }
+.corr-hint { color: var(--muted); font-size: .82rem; padding-bottom: .55rem; }
+.corr-table { width: 100%; border-collapse: collapse; }
+.corr-table th, .corr-table td { text-align: right; padding: .55rem .5rem; font-size: .88rem; border-bottom: 1px solid var(--line); }
+.corr-table th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+.corr-table th:first-child, .corr-table td:first-child { text-align: left; }
+.corr-table tr:last-child td { border-bottom: none; }
 
 /* ---------- load motion (one staged reveal) ---------- */
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }

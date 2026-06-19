@@ -171,6 +171,14 @@ def calendar():
     return jsonify([e.to_dict() for e in events])
 
 
+@bp.route("/correlation.json")
+def correlation():
+    """Factor correlation + normalized overlay for a target (portfolio or symbol)."""
+    target = request.args.get("target", "portfolio")
+    factor = request.args.get("factor")
+    return jsonify(container.factor_analysis.analyze(target=target, factor=factor))
+
+
 MACRO_WHY = {
     "VIX": "市場恐慌與避險情緒;VIX 走高代表風險趨避,壓抑成長股估值。",
     "HYOAS": "高收益債信用利差;走擴代表風險胃納下降,常領先股市轉弱。",
@@ -191,11 +199,14 @@ def macro_page():
 
     regime = container.macro_provider.regime()
     events = EconomicCalendar().upcoming(limit=6)
+    state = build_positions(container.ledger.all())
+    holdings = [pos.symbol for pos in state.positions]
     return render_template(
         "macro.html",
         regime=regime.to_dict(),
         events=[e.to_dict() for e in events],
         why=MACRO_WHY,
+        holdings=holdings,
     )
 
 

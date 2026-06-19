@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
   <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
 </head>
 
 <body>
@@ -59,6 +60,30 @@
       {% endfor %}
     </div>
 
+    <div class="section-label">因子相關性 <span class="badge-ai">vs 你的組合</span></div>
+    <div class="panel reveal d1" style="margin-bottom:1.75rem">
+      <div class="corr-controls">
+        <label class="field">比較對象
+          <select id="corrTarget">
+            <option value="portfolio">整個投資組合 (NAV)</option>
+            {% for h in holdings %}<option value="{{ h }}">{{ h }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="field">疊圖因子
+          <select id="corrFactor"></select>
+        </label>
+        <span class="corr-hint" id="corrHint">載入中…</span>
+      </div>
+      <div class="panel-body" style="padding-top:.5rem"><canvas id="corrChart" height="110"></canvas></div>
+      <div style="padding:0 1.3rem 1.3rem">
+        <table class="corr-table">
+          <thead><tr><th>因子</th><th>相關係數</th><th>方向</th><th>樣本數</th></tr></thead>
+          <tbody id="corrTable"></tbody>
+        </table>
+        <div class="corr-hint" style="padding-top:.6rem">相關係數 = 因子日變動 與 對象日報酬 的相關性([-1,1])。負值代表反向(如殖利率↑、組合↓)。日線相關性僅供脈絡參考,非因果。</div>
+      </div>
+    </div>
+
     <div class="section-label">重要事件倒數</div>
     <div class="event-list reveal d2">
       {% for e in events %}
@@ -72,6 +97,73 @@
 
     <footer>⚠️ 總體因素為「風險姿態與脈絡」,對個股進出場時機預測力有限;僅供教育參考,不構成投資建議。</footer>
   </main>
+
+  <script>
+    const corrTarget = document.getElementById('corrTarget');
+    const corrFactor = document.getElementById('corrFactor');
+    let corrChart, lastCorr;
+
+    function tc() {
+      return window.PortfolioTheme ? window.PortfolioTheme.colors()
+        : { ink2: '#3a465c', muted: '#76849a', line: '#e7ebf2', accent: '#2350e8', surface: '#fff' };
+    }
+    function dirLabel(c) { return c == null ? '—' : (c >= 0 ? '正相關 ↗' : '負相關 ↘'); }
+
+    function renderCorr(d) {
+      lastCorr = d;
+      if (corrFactor.children.length === 0 && d.sensitivity) {
+        d.sensitivity.forEach(r => {
+          if (r.corr != null) {
+            const o = document.createElement('option');
+            o.value = r.key; o.textContent = r.label; corrFactor.appendChild(o);
+          }
+        });
+      }
+      if (d.factor) corrFactor.value = d.factor;
+      const tgtName = d.target === 'portfolio' ? '組合 NAV' : d.target;
+      document.getElementById('corrHint').textContent =
+        d.factor_label ? ('疊圖:' + tgtName + ' vs ' + d.factor_label) : '資料不足';
+
+      const c = tc();
+      const ov = d.overlay || { dates: [], target_pct: [], factor_pct: [] };
+      if (corrChart) corrChart.destroy();
+      corrChart = new Chart(document.getElementById('corrChart'), {
+        type: 'line',
+        data: {
+          labels: ov.dates, datasets: [
+            { label: tgtName + ' %', data: ov.target_pct, borderColor: c.accent, borderWidth: 2, pointRadius: 0, tension: .25 },
+            { label: (d.factor_label || '因子') + ' %', data: ov.factor_pct, borderColor: '#c5860f', borderWidth: 2, pointRadius: 0, tension: .25, borderDash: [5, 3] },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: c.ink2, usePointStyle: true, boxWidth: 8 } } },
+          scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: c.muted } }, y: { grid: { color: c.line }, ticks: { callback: v => v + '%', color: c.muted } } }
+        }
+      });
+
+      const tb = document.getElementById('corrTable'); tb.innerHTML = '';
+      (d.sensitivity || []).forEach(r => {
+        const txt = r.corr == null ? '—' : (r.corr > 0 ? '+' : '') + r.corr;
+        const cls = r.corr == null ? '' : (r.corr >= 0 ? 'pos' : 'neg');
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + r.label + '</td><td class="num ' + cls + '">' + txt +
+          '</td><td>' + dirLabel(r.corr) + '</td><td class="num">' + r.n + '</td>';
+        tb.appendChild(tr);
+      });
+    }
+
+    function loadCorr() {
+      const t = corrTarget.value, f = corrFactor.value || '';
+      document.getElementById('corrHint').textContent = '載入中…';
+      fetch('/correlation.json?target=' + encodeURIComponent(t) + (f ? '&factor=' + encodeURIComponent(f) : ''))
+        .then(r => r.json()).then(renderCorr).catch(() => { document.getElementById('corrHint').textContent = '載入失敗'; });
+    }
+    corrTarget.addEventListener('change', () => { corrFactor.innerHTML = ''; loadCorr(); });
+    corrFactor.addEventListener('change', loadCorr);
+    window.addEventListener('themechange', () => { if (lastCorr) renderCorr(lastCorr); });
+    loadCorr();
+  </script>
 </body>
 
 </html>

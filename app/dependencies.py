@@ -24,6 +24,7 @@ from app.services.advice_service import AdviceService
 from app.services.analysis_service import AnalysisService
 from app.services.capex_service import CapexService
 from app.services.deterministic_narrator import DeterministicNarrator
+from app.services.factor_analysis import FactorAnalysisService
 from app.services.nav_service import NavService
 from app.services.report_service import ReportService
 from app.services.signal_orchestrator import SignalOrchestrator
@@ -54,6 +55,7 @@ class Container:
     advice_service: AdviceService
     report_service: ReportService
     macro_provider: MacroProvider
+    factor_analysis: FactorAnalysisService
 
 
 def build_container() -> Container:
@@ -88,6 +90,7 @@ def build_container() -> Container:
     report_service = ReportService(
         valuation_service, nav_service, advice_service, _build_notifiers()
     )
+    factor_analysis = FactorAnalysisService(nav_service, YahooHistoryProvider(), macro_provider.fred)
 
     return Container(
         price_fetcher=price_fetcher,
@@ -100,6 +103,7 @@ def build_container() -> Container:
         advice_service=advice_service,
         report_service=report_service,
         macro_provider=macro_provider,
+        factor_analysis=factor_analysis,
     )
 
 

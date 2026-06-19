@@ -75,6 +75,37 @@ class FredClient:
             logger.warning("FRED fetch failed for %s: %s", series_id, exc)
             return None, None, today
 
+    def history(self, series_id: str, observation_days: int = 220):
+        """Return a date-indexed pandas Series of recent observations (or None)."""
+        if not self.api_key:
+            return None
+        import pandas as pd
+        import requests
+        from datetime import date, timedelta
+
+        try:
+            start = (date.today() - timedelta(days=observation_days)).isoformat()
+            resp = requests.get(
+                _FRED_URL,
+                params={
+                    "series_id": series_id,
+                    "api_key": self.api_key,
+                    "file_type": "json",
+                    "observation_start": start,
+                    "sort_order": "asc",
+                },
+                timeout=20,
+            )
+            resp.raise_for_status()
+            obs = resp.json().get("observations", [])
+            points = [(o["date"], float(o["value"])) for o in obs if o.get("value") not in (".", "", None)]
+            if not points:
+                return None
+            return pd.Series([p[1] for p in points], index=pd.to_datetime([p[0] for p in points]))
+        except Exception as exc:
+            logger.warning("FRED history failed for %s: %s", series_id, exc)
+            return None
+
 
 class MacroProvider:
     def __init__(self, allow_online: bool = True, fred_api_key: Optional[str] = None) -> None:
