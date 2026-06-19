@@ -19,6 +19,12 @@ def create_app():
         static_folder="../static",
     )
 
+    # CSRF protection for state-changing forms. Set a real SECRET_KEY in prod.
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or "dev-insecure-change-me"
+    from flask_wtf.csrf import CSRFProtect
+
+    CSRFProtect(app)
+
     from app.web.routes import bp
 
     app.register_blueprint(bp)

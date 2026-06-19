@@ -6,5 +6,6 @@ pytest
 requests
 rich
 flask
+flask-wtf
 gunicorn
 apscheduler

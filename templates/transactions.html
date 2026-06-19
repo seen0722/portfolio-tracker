@@ -18,6 +18,7 @@
     <nav>
       <a href="/">儀表板</a>
       <a class="active" href="/transactions">交易</a>
+      <a href="/macro">市場</a>
       <a href="/report">日報</a>
     </nav>
     <div class="bar-right">
@@ -32,6 +33,7 @@
     <div class="card reveal" style="margin-bottom:1.5rem">
       <div class="panel-head" style="padding:0 0 1rem"><h2>新增交易</h2></div>
       <form class="form-grid" method="post" action="/transactions">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
         <label class="field">類型
           <select name="txn_type" required>{% for t in txn_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select>
         </label>
@@ -65,6 +67,7 @@
             <td>{{ t.note or "—" }}</td>
             <td>
               <form method="post" action="/transactions/{{ t.id }}/delete" onsubmit="return confirm('刪除這筆交易？');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <button type="submit" class="btn-link-danger">刪除</button>
               </form>
             </td>
