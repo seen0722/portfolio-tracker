@@ -263,6 +263,13 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .corr-table th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
 .corr-table th:first-child, .corr-table td:first-child { text-align: left; }
 .corr-table tr:last-child td { border-bottom: none; }
+.heat-wrap { overflow-x: auto; }
+.heat-table { width: 100%; border-collapse: separate; border-spacing: 0 2px; min-width: 600px; padding: .5rem; }
+.heat-table th, .heat-table td { padding: .45rem .5rem; font-size: .8rem; text-align: right; white-space: nowrap; }
+.heat-table thead th { color: var(--muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; }
+.heat-table th:first-child, .heat-table td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface); font-weight: 600; }
+.heat-group td { background: var(--surface-2); color: var(--ink-2); font-weight: 700; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; border-radius: 6px; }
+.heat-cell { border-radius: 6px; font-variant-numeric: tabular-nums; font-weight: 600; min-width: 56px; }
 
 /* ---------- load motion (one staged reveal) ---------- */
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }

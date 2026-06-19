@@ -173,10 +173,23 @@ def calendar():
 
 @bp.route("/correlation.json")
 def correlation():
-    """Factor correlation + normalized overlay for a target (portfolio or symbol)."""
+    """Factor correlation for a target (portfolio or symbol)."""
     target = request.args.get("target", "portfolio")
     factor = request.args.get("factor")
     return jsonify(container.factor_analysis.analyze(target=target, factor=factor))
+
+
+@bp.route("/heatmap.json")
+def heatmap():
+    """Multi-horizon performance heatmap across factors, indices, sectors, holdings."""
+    from app.services.performance_heatmap import HORIZONS
+
+    state = build_positions(container.ledger.all())
+    holdings = [pos.symbol for pos in state.positions]
+    return jsonify({
+        "horizons": [{"key": k, "label": label} for k, label in HORIZONS],
+        "groups": container.performance_heatmap.build(holdings),
+    })
 
 
 MACRO_WHY = {

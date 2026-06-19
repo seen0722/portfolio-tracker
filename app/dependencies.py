@@ -26,6 +26,7 @@ from app.services.capex_service import CapexService
 from app.services.deterministic_narrator import DeterministicNarrator
 from app.services.factor_analysis import FactorAnalysisService
 from app.services.nav_service import NavService
+from app.services.performance_heatmap import PerformanceHeatmap
 from app.services.report_service import ReportService
 from app.services.signal_orchestrator import SignalOrchestrator
 from app.services.valuation_service import ValuationService
@@ -56,6 +57,7 @@ class Container:
     report_service: ReportService
     macro_provider: MacroProvider
     factor_analysis: FactorAnalysisService
+    performance_heatmap: PerformanceHeatmap
 
 
 def build_container() -> Container:
@@ -91,6 +93,7 @@ def build_container() -> Container:
         valuation_service, nav_service, advice_service, _build_notifiers()
     )
     factor_analysis = FactorAnalysisService(nav_service, YahooHistoryProvider(), macro_provider.fred)
+    performance_heatmap = PerformanceHeatmap(YahooHistoryProvider(), macro_provider.fred)
 
     return Container(
         price_fetcher=price_fetcher,
@@ -104,6 +107,7 @@ def build_container() -> Container:
         report_service=report_service,
         macro_provider=macro_provider,
         factor_analysis=factor_analysis,
+        performance_heatmap=performance_heatmap,
     )
 
 
