@@ -37,9 +37,8 @@
       </div>
       <div class="cell">
         <div class="k">當日變動</div>
-        <div class="v sub">
-          <span class="chip {{ 'pos' if summary.daily_return_pct >= 0 else 'neg' }} num">{{ "%+.2f"|format(summary.daily_return_pct) }}%</span>
-        </div>
+        <div class="v sub num {{ 'pos' if summary.daily_return_pct >= 0 else 'neg' }}">{{ '+' if summary.daily_change_usd >= 0 else '−' }}${{ "{:,.0f}".format(summary.daily_change_usd|abs) }}</div>
+        <div class="sub-line num {{ 'pos' if summary.daily_return_pct >= 0 else 'neg' }}">{{ "%+.2f"|format(summary.daily_return_pct) }}%</div>
       </div>
       <div class="cell">
         <div class="k">未實現損益</div>
@@ -82,7 +81,7 @@
         <div class="metric"><div class="mk">最大回撤</div><div class="mv num neg">{{ "%.1f"|format(analysis.max_drawdown) }}%</div></div>
       </div>
       {% endif %}
-      <div class="panel-body" style="padding-top:.25rem"><canvas id="navChart" height="104"></canvas></div>
+      <div class="panel-body" style="padding-top:.25rem"><div class="nav-chart"><canvas id="navChart"></canvas></div></div>
     </div>
 
     <div class="panel reveal d1" style="margin-top:1.25rem">
@@ -105,7 +104,7 @@
         <tbody>
           {% for pos in result.positions %}
           <tr>
-            <td><span class="sym">{{ pos.name }}<small class="cat">{{ pos.category }} · {{ pos.price_currency or '—' }}</small></span></td>
+            <td><span class="sym-wrap"><span class="row-dot" style="background:{{ allocation_colors.get(pos.name) or 'var(--line-strong)' }}"></span><span class="sym">{{ pos.name }}<small class="cat">{{ pos.category }} · {{ pos.price_currency or '—' }}</small></span></span></td>
             <td class="num">{{ "{:,.2f}".format(pos.quantity) if pos.quantity is not none else "—" }}</td>
             <td class="num">{{ "{:,.2f}".format(pos.unit_price) if pos.unit_price is not none else "—" }}</td>
             <td class="num">${{ "{:,.0f}".format(pos.value_usd) }}</td>
@@ -141,7 +140,7 @@
     const allocLabels = {{ allocation_labels | tojson }};
     const allocData = {{ allocation_data | tojson }};
     const allocValues = {{ allocation_values | tojson }};
-    const ALLOC_COLORS = ['#2350e8','#07976a','#c5860f','#8b5cf6','#ec4899','#06b6d4','#64748b','#f97316','#14b8a6','#a855f7'];
+    const ALLOC_COLORS = {{ allocation_palette | tojson }};
 
     function hexA(hex, a) {
       hex = (hex || '#2350e8').replace('#', '');

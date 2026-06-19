@@ -21,6 +21,12 @@ MAX_HISTORY_POINTS = 90
 # Chart time-range tab key -> yfinance period for NAV reconstruction.
 NAV_RANGES = {"1w": "5d", "1m": "1mo", "3m": "3mo", "6m": "6mo", "1y": "1y", "2y": "2y"}
 
+# Donut/legend/holdings-row colour palette (shared, single source of truth).
+ALLOC_PALETTE = [
+    "#2350e8", "#07976a", "#c5860f", "#8b5cf6", "#ec4899",
+    "#06b6d4", "#64748b", "#f97316", "#14b8a6", "#a855f7",
+]
+
 
 def _chart_payload(history_df):
     limited = history_df.tail(MAX_HISTORY_POINTS)
@@ -58,14 +64,20 @@ def dashboard():
         _chart_payload(history_df) if not history_df.empty else ([], [], [])
     )
 
+    # Allocation donut is the "股票/ETFs" view — exclude cash, and weight each
+    # holding by its share of the stock/ETF total (not the cash-inclusive total).
     _alloc = sorted(
-        (pos for pos in result.positions if pos.portfolio_pct > 0),
+        (pos for pos in result.positions if pos.category == "stock" and pos.value_usd > 0),
         key=lambda pos: pos.value_usd,
         reverse=True,
     )
+    _stock_total = sum(pos.value_usd for pos in _alloc) or 1.0
     allocation_labels = [pos.name for pos in _alloc]
-    allocation_data = [round(pos.portfolio_pct, 2) for pos in _alloc]
     allocation_values = [round(pos.value_usd, 2) for pos in _alloc]
+    allocation_data = [round(pos.value_usd / _stock_total * 100, 2) for pos in _alloc]
+    # Shared palette so the donut, its legend, and the holdings-table row dots all
+    # use the same colour per symbol — visually linking allocation to holdings.
+    allocation_colors = {pos.name: ALLOC_PALETTE[i % len(ALLOC_PALETTE)] for i, pos in enumerate(_alloc)}
 
     return render_template(
         "dashboard.html",
@@ -75,6 +87,13 @@ def dashboard():
             "total_usd": result.totals.usd,
             "total_twd": result.totals.twd,
             "daily_return_pct": daily_return,
+            # Exact today's $ change: total − yesterday's total (derived from the
+            # daily return), so the hero shows "+$X (+Y%)" like Firstrade.
+            "daily_change_usd": (
+                result.totals.usd - result.totals.usd / (1 + daily_return / 100)
+                if daily_return
+                else 0.0
+            ),
         },
         analysis=analysis,
         history_labels=chart_labels,
@@ -83,6 +102,8 @@ def dashboard():
         allocation_labels=allocation_labels,
         allocation_data=allocation_data,
         allocation_values=allocation_values,
+        allocation_colors=allocation_colors,
+        allocation_palette=ALLOC_PALETTE,
         price_sources=container.price_fetcher.describe_sources(),
     )
 
