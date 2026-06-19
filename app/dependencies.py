@@ -16,6 +16,7 @@ from app.infrastructure.capex_monitor import CapexMonitor
 from app.infrastructure.history_provider import YahooHistoryProvider
 from app.infrastructure.importer import import_portfolio_json
 from app.infrastructure.ledger import SqliteLedger
+from app.infrastructure.macro_provider import MacroProvider
 from app.infrastructure.market_data import PriceFetcher
 from app.infrastructure.nav_repository import NavRepository
 from app.infrastructure.notifier import LogNotifier, TelegramNotifier
@@ -52,6 +53,7 @@ class Container:
     signal_orchestrator: SignalOrchestrator
     advice_service: AdviceService
     report_service: ReportService
+    macro_provider: MacroProvider
 
 
 def build_container() -> Container:
@@ -78,7 +80,11 @@ def build_container() -> Container:
         ]
     )
     valuation_service = ValuationService(ledger, price_fetcher)
-    advice_service = AdviceService(signal_orchestrator, _build_narrator())
+    macro_provider = MacroProvider(
+        allow_online=not OVERRIDES_ONLY,
+        fred_api_key=os.environ.get("FRED_API_KEY"),
+    )
+    advice_service = AdviceService(signal_orchestrator, _build_narrator(), macro_provider)
     report_service = ReportService(
         valuation_service, nav_service, advice_service, _build_notifiers()
     )
@@ -93,6 +99,7 @@ def build_container() -> Container:
         signal_orchestrator=signal_orchestrator,
         advice_service=advice_service,
         report_service=report_service,
+        macro_provider=macro_provider,
     )
 
 

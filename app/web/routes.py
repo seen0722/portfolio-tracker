@@ -156,6 +156,49 @@ def advice():
     return jsonify({sym: card.to_dict() for sym, card in cards.items()})
 
 
+@bp.route("/macro.json")
+def macro():
+    """Market-wide regime: macro indicators + composite Risk-On/Off read."""
+    return jsonify(container.macro_provider.regime().to_dict())
+
+
+@bp.route("/calendar.json")
+def calendar():
+    """Upcoming high-impact macro events (FOMC / CPI / NFP) with countdowns."""
+    from app.services.economic_calendar import EconomicCalendar
+
+    events = EconomicCalendar().upcoming(limit=5)
+    return jsonify([e.to_dict() for e in events])
+
+
+MACRO_WHY = {
+    "VIX": "市場恐慌與避險情緒;VIX 走高代表風險趨避,壓抑成長股估值。",
+    "HYOAS": "高收益債信用利差;走擴代表風險胃納下降,常領先股市轉弱。",
+    "T10Y2Y": "10Y 減 2Y 殖利率;倒掛(負值)是經典衰退前兆。",
+    "REAL10Y": "扣除通膨後的實質利率;成長股是長天期資產,實質利率走高最傷估值。",
+    "US10Y": "無風險折現率基準;殖利率上行壓抑高本益比的科技股。",
+    "DXY": "美元強弱;強美元不利大型跨國科技股的海外營收。",
+    "SOX": "費城半導體指數;直接反映你重押的 NVDA 等半導體景氣。",
+    "GOLD": "避險與抗通膨資產;金價急漲常伴隨風險趨避。",
+    "WTI": "原油價格;油價上行推升通膨,間接壓抑寬鬆預期。",
+}
+
+
+@bp.route("/macro")
+def macro_page():
+    """Full market-regime page: factors with explanations + event calendar."""
+    from app.services.economic_calendar import EconomicCalendar
+
+    regime = container.macro_provider.regime()
+    events = EconomicCalendar().upcoming(limit=6)
+    return render_template(
+        "macro.html",
+        regime=regime.to_dict(),
+        events=[e.to_dict() for e in events],
+        why=MACRO_WHY,
+    )
+
+
 @bp.route("/report")
 def report_preview():
     """HTML preview of the daily report (same content the scheduler pushes)."""

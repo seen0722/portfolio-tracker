@@ -23,16 +23,21 @@ class DeterministicNarrator:
 
     def narrate(self, bundle: EvidenceBundle, context: Dict[str, Any]) -> OpinionCard:
         scored = [s for s in bundle.signals if s.light != UNKNOWN]
-        net = sum(s.score for s in scored)
+        signal_net = sum(s.score for s in scored)
 
-        if net >= _OPINION_THRESHOLD:
+        # Market regime is background CONTEXT: it tilts the decision modestly,
+        # it does not by itself decide. Confidence stays driven by the signals.
+        market_score = context.get("market_score")
+        decision_net = signal_net + (0.3 * float(market_score) if market_score is not None else 0.0)
+
+        if decision_net >= _OPINION_THRESHOLD:
             opinion = ADD
-        elif net <= -_OPINION_THRESHOLD:
+        elif decision_net <= -_OPINION_THRESHOLD:
             opinion = TRIM
         else:
             opinion = HOLD
 
-        if abs(net) >= 0.6 and len(scored) >= 2:
+        if abs(signal_net) >= 0.6 and len(scored) >= 2:
             confidence = "high"
         elif scored:
             confidence = "medium"
@@ -43,6 +48,9 @@ class DeterministicNarrator:
             f"{_LIGHT_LABEL.get(s.light, '⬜')} [{s.signal_id}] {s.evidence}"
             for s in bundle.signals
         ]
+        market_label = context.get("market_label")
+        if market_label:
+            lines.append(f"🌐 市場環境:{market_label}")
         roi = context.get("roi_pct")
         if roi is not None:
             lines.append(f"目前未實現報酬率 {roi:+.1f}%")

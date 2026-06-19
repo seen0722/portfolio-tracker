@@ -19,6 +19,7 @@
     <nav>
       <a class="active" href="/">儀表板</a>
       <a href="/transactions">交易</a>
+      <a href="/macro">市場</a>
       <a href="/report">日報</a>
     </nav>
     <div class="bar-right">
@@ -50,6 +51,18 @@
         <div class="v sub num">${{ "{:,.0f}".format(result.totals.cost_usd) }}</div>
         <div class="sub-line">{{ result.positions|selectattr("category","equalto","stock")|list|length }} 檔持倉</div>
       </div>
+    </section>
+
+    <section class="regime reveal d1" id="regime" style="display:none">
+      <div class="regime-head">
+        <h2>市場環境 <span class="badge-ai">macro</span></h2>
+        <div class="regime-right">
+          <span class="regime-badge neutral" id="regimeBadge">—</span>
+          <span class="regime-summary" id="regimeSummary"></span>
+        </div>
+      </div>
+      <div class="macro-row" id="macroRow"></div>
+      <div class="macro-events" id="macroEvents"></div>
     </section>
 
     <section class="grid reveal d1">
@@ -150,6 +163,40 @@
     }
     buildCharts();
     window.addEventListener('themechange', buildCharts);
+
+    // Market-regime strip (macro): populate after first paint, hide unavailable factors.
+    fetch('/macro.json').then(r => r.json()).then(d => {
+      const badge = document.getElementById('regimeBadge');
+      badge.textContent = d.label; badge.className = 'regime-badge ' + d.risk_state;
+      document.getElementById('regimeSummary').textContent = d.summary || '';
+      const row = document.getElementById('macroRow'); row.innerHTML = '';
+      (d.indicators || []).forEach(i => {
+        if (i.light === 'unknown') return; // e.g. FRED factors before a key is set
+        const val = i.value != null ? (i.unit === '$' ? '$' : '') + i.value + (i.unit === '%' ? '%' : '') : '—';
+        const chg = i.change_pct != null ? (i.change_pct >= 0 ? '+' : '') + i.change_pct + '%' : '';
+        const chgClass = i.stance === 'tailwind' ? 'pos' : (i.stance === 'headwind' ? 'neg' : '');
+        const tile = document.createElement('div');
+        tile.className = 'macro-tile ' + i.light;
+        tile.title = i.label + ' · ' + i.note;
+        tile.innerHTML = '<div class="ml">' + i.label + '</div><div class="mv num">' + val +
+          '</div><div class="mc num ' + chgClass + '">' + (i.note || '') + ' ' + chg + '</div>';
+        row.appendChild(tile);
+      });
+      if (row.children.length) document.getElementById('regime').style.display = '';
+    }).catch(() => {});
+
+    // Economic event countdowns (FOMC / CPI / NFP).
+    fetch('/calendar.json').then(r => r.json()).then(evts => {
+      const el = document.getElementById('macroEvents');
+      if (!evts || !evts.length) return;
+      el.innerHTML = '<span class="lbl">關鍵事件</span>' + evts.slice(0, 4).map(e => {
+        const soon = e.days_until <= 3 ? ' soon' : '';
+        const approx = e.approximate ? '約 ' : '';
+        return '<span class="event-chip' + soon + '" title="' + (e.note || '') + '">' + e.name +
+          ' <b>' + approx + e.days_until + ' 天</b></span>';
+      }).join('');
+      if (document.getElementById('regime').style.display === 'none') document.getElementById('regime').style.display = '';
+    }).catch(() => {});
 
     // Stale-while-revalidate: fill signal lights + AI opinions after first paint.
     const LIGHTS = { green: 'green', yellow: 'yellow', red: 'red', unknown: 'unknown' };

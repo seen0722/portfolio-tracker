@@ -210,6 +210,52 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .rationale { margin-top: .65rem; color: var(--ink-2); font-size: .9rem; line-height: 1.65; white-space: pre-line; }
 .disclaimer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
 
+/* ---------- market regime strip ---------- */
+.regime { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 1.5rem; overflow: hidden; }
+.regime-head { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.3rem; gap: 1rem; flex-wrap: wrap; }
+.regime-head h2 { margin: 0; font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-2); }
+.regime-right { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.regime-badge { font-size: .85rem; font-weight: 800; padding: .35rem .85rem; border-radius: 999px; }
+.regime-badge.risk_on { background: var(--pos-soft); color: var(--pos); }
+.regime-badge.risk_off { background: var(--neg-soft); color: var(--neg); }
+.regime-badge.neutral { background: color-mix(in srgb, var(--muted) 16%, transparent); color: var(--ink-2); }
+.regime-summary { color: var(--muted); font-size: .8rem; }
+.macro-row { display: flex; gap: .75rem; padding: 0 1.3rem 1.2rem; overflow-x: auto; }
+.macro-tile { flex: 0 0 auto; min-width: 112px; border: 1px solid var(--line); border-left: 3px solid var(--line-strong); border-radius: 10px; padding: .6rem .85rem; background: var(--surface-2); }
+.macro-tile.green { border-left-color: var(--pos); }
+.macro-tile.yellow { border-left-color: var(--warn); }
+.macro-tile.red { border-left-color: var(--neg); }
+.macro-tile .ml { font-size: .68rem; color: var(--muted); white-space: nowrap; }
+.macro-tile .mv { font-size: 1.05rem; font-weight: 800; margin-top: .15rem; }
+.macro-tile .mc { font-size: .72rem; font-weight: 600; margin-top: .1rem; white-space: nowrap; }
+.macro-events { display: flex; gap: .5rem; padding: 0 1.3rem 1.15rem; flex-wrap: wrap; align-items: center; }
+.macro-events .lbl { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.event-chip { font-size: .76rem; font-weight: 600; padding: .25rem .6rem; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); }
+.event-chip b { color: var(--accent); }
+.event-chip.soon b { color: var(--neg); }
+
+/* ---------- /macro page ---------- */
+.regime-banner { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.35rem 1.6rem; margin-bottom: 1.75rem; }
+.regime-banner .score { font-size: 2.1rem; font-weight: 800; letter-spacing: -.02em; }
+.regime-banner .rsum { color: var(--muted); font-size: .9rem; }
+.factor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 1.75rem; }
+.factor-card { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--line-strong); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 1.1rem 1.25rem; }
+.factor-card.green { border-left-color: var(--pos); }
+.factor-card.yellow { border-left-color: var(--warn); }
+.factor-card.red { border-left-color: var(--neg); }
+.factor-top { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.factor-name { font-weight: 700; font-size: .95rem; }
+.factor-val { font-size: 1.35rem; font-weight: 800; }
+.factor-chg { font-size: .8rem; font-weight: 600; margin-top: .1rem; }
+.factor-why { color: var(--ink-2); font-size: .85rem; line-height: 1.6; margin-top: .55rem; }
+.factor-na { color: var(--muted); font-size: .82rem; margin-top: .55rem; }
+.event-list { display: flex; flex-direction: column; gap: .6rem; }
+.event-row { display: flex; align-items: center; gap: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: .8rem 1.15rem; box-shadow: var(--shadow-sm); }
+.event-row .days { font-weight: 800; color: var(--accent); min-width: 70px; font-variant-numeric: tabular-nums; }
+.event-row.soon .days { color: var(--neg); }
+.event-row .ename { font-weight: 700; }
+.event-row .enote { color: var(--muted); font-size: .8rem; margin-left: auto; text-align: right; }
+
 /* ---------- load motion (one staged reveal) ---------- */
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .reveal { animation: rise .6s var(--ease) both; }

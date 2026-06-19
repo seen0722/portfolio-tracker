@@ -23,13 +23,36 @@ logger = logging.getLogger(__name__)
 
 
 class AdviceService:
-    def __init__(self, orchestrator: SignalOrchestrator, narrator: LlmNarrator) -> None:
+    def __init__(
+        self,
+        orchestrator: SignalOrchestrator,
+        narrator: LlmNarrator,
+        macro_provider: Any = None,
+    ) -> None:
         self.orchestrator = orchestrator
         self.narrator = narrator
+        self.macro_provider = macro_provider
+
+    def _market_context(self) -> Dict[str, Any]:
+        """Market regime as shared background context for every holding's opinion."""
+        if not self.macro_provider:
+            return {}
+        try:
+            regime = self.macro_provider.regime()
+            return {
+                "market_label": regime.label,
+                "market_state": regime.risk_state,
+                "market_score": regime.score,
+                "market_summary": regime.summary,
+            }
+        except Exception as exc:  # never let macro break advice
+            logger.warning("Market context unavailable: %s", exc)
+            return {}
 
     def advise(self, symbol: str, context: Optional[Dict[str, Any]] = None) -> OpinionCard:
         bundle = self.orchestrator.bundle_for(symbol)
-        return self.advise_bundle(bundle, context)
+        merged = {**self._market_context(), **(context or {})}
+        return self.advise_bundle(bundle, merged)
 
     def advise_bundle(
         self, bundle: EvidenceBundle, context: Optional[Dict[str, Any]] = None
@@ -44,8 +67,9 @@ class AdviceService:
     ) -> Dict[str, OpinionCard]:
         bundles = self.orchestrator.bundles_for(symbols)
         contexts = contexts or {}
+        market = self._market_context()
         return {
-            symbol: self.advise_bundle(bundle, contexts.get(symbol))
+            symbol: self.advise_bundle(bundle, {**market, **(contexts.get(symbol) or {})})
             for symbol, bundle in bundles.items()
         }
 
