@@ -5,6 +5,9 @@ history.csv
 # runtime-generated SQLite db (seeded from portfolio.json)
 portfolio.db
 
+# local secrets (FRED_API_KEY, LLM_API_KEY, ...) — keep .env.example tracked
+.env
+
 # local backups and OS cruft
 *.bak
 .DS_Store
