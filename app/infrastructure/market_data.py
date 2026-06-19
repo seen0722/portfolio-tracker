@@ -67,7 +67,11 @@ class PriceFetcher:
         self._load_overrides()
 
     def get_price(self, symbol: str) -> float:
-        """Retrieve the latest close price for the symbol."""
+        """Retrieve the latest price, preferring live data over manual overrides.
+
+        Overrides are a *fallback* for when online sources are unavailable or
+        fail — a live tracker must not let a stale manual price mask the market.
+        """
         # Check cache first
         if symbol in self._cache:
             price, timestamp = self._cache[symbol]
@@ -75,19 +79,19 @@ class PriceFetcher:
                 logger.debug("Using cached price for %s: %.4f", symbol, price)
                 return price
 
-        # Check overrides
-        price = self._overrides.get(symbol)
-        if price is not None:
-            self.overrides_used.add(symbol)
-            logger.info("Using local override price for %s: %.4f", symbol, price)
-            self._cache[symbol] = (price, time.time())
-            return price
-
         if self.allow_online:
             price = self._fetch_online(symbol)
             if price is not None:
                 self._cache[symbol] = (price, time.time())
                 return price
+
+        # Fallback: manual override only when online is off or failed.
+        price = self._overrides.get(symbol)
+        if price is not None:
+            self.overrides_used.add(symbol)
+            logger.info("Using fallback override price for %s: %.4f", symbol, price)
+            self._cache[symbol] = (price, time.time())
+            return price
 
         raise PriceFetchError(
             f"No price data available for {symbol} "
@@ -95,50 +99,51 @@ class PriceFetcher:
         )
 
     def get_prices(self, symbols: List[str]) -> Dict[str, float]:
-        """Fetch multiple prices in parallel."""
-        results = {}
-        to_fetch = []
+        """Fetch multiple prices in parallel, preferring live data over overrides."""
+        results: Dict[str, float] = {}
+        to_fetch: List[str] = []
 
-        # Check cache and overrides first
         for symbol in symbols:
-            # Check cache
             if symbol in self._cache:
                 price, timestamp = self._cache[symbol]
                 if time.time() - timestamp < self.cache_ttl_seconds:
                     results[symbol] = price
                     continue
-            
-            # Check overrides
-            if symbol in self._overrides:
-                price = self._overrides[symbol]
-                self.overrides_used.add(symbol)
-                results[symbol] = price
-                self._cache[symbol] = (price, time.time())
-                continue
-            
             if self.allow_online:
                 to_fetch.append(symbol)
+            else:
+                self._apply_override(symbol, results)
 
-        if not to_fetch:
-            return results
+        if to_fetch:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                future_to_symbol = {
+                    executor.submit(self._fetch_online, symbol): symbol
+                    for symbol in to_fetch
+                }
+                for future in concurrent.futures.as_completed(future_to_symbol):
+                    symbol = future_to_symbol[future]
+                    try:
+                        price = future.result()
+                        if price is not None:
+                            results[symbol] = price
+                            self._cache[symbol] = (price, time.time())
+                    except Exception as exc:
+                        logger.error("Error fetching %s: %s", symbol, exc)
 
-        # Fetch remaining online in parallel
-        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-            future_to_symbol = {
-                executor.submit(self._fetch_online, symbol): symbol 
-                for symbol in to_fetch
-            }
-            for future in concurrent.futures.as_completed(future_to_symbol):
-                symbol = future_to_symbol[future]
-                try:
-                    price = future.result()
-                    if price is not None:
-                        results[symbol] = price
-                        self._cache[symbol] = (price, time.time())
-                except Exception as exc:
-                    logger.error("Error fetching %s: %s", symbol, exc)
+            # Fallback to overrides only for symbols online could not price.
+            for symbol in to_fetch:
+                if symbol not in results:
+                    self._apply_override(symbol, results)
 
         return results
+
+    def _apply_override(self, symbol: str, results: Dict[str, float]) -> None:
+        """Use a manual override price as a fallback, if one exists."""
+        price = self._overrides.get(symbol)
+        if price is not None:
+            self.overrides_used.add(symbol)
+            results[symbol] = price
+            self._cache[symbol] = (price, time.time())
 
     def _fetch_online(self, symbol: str) -> Optional[float]:
         """Try all online sources sequentially."""
