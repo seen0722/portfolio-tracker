@@ -173,7 +173,7 @@
       (d.indicators || []).forEach(i => {
         if (i.light === 'unknown') return; // e.g. FRED factors before a key is set
         const val = i.value != null ? (i.unit === '$' ? '$' : '') + i.value + (i.unit === '%' ? '%' : '') : '—';
-        const chg = i.change_pct != null ? (i.change_pct >= 0 ? '+' : '') + i.change_pct + '%' : '';
+        const chg = i.change_pct != null ? (i.change_pct >= 0 ? '+' : '') + i.change_pct + '%/週' : '';
         const chgClass = i.stance === 'tailwind' ? 'pos' : (i.stance === 'headwind' ? 'neg' : '');
         const tile = document.createElement('div');
         tile.className = 'macro-tile ' + i.light;

@@ -48,7 +48,7 @@
         </div>
         {% if i.value is not none %}
         <div class="factor-chg num {{ 'pos' if i.stance == 'tailwind' else 'neg' if i.stance == 'headwind' else '' }}">
-          {{ i.note }}{% if i.change_pct is not none %} · {{ "%+.2f"|format(i.change_pct) }}%{% endif %}
+          {{ i.note }}{% if i.change_pct is not none %} · {{ "%+.2f"|format(i.change_pct) }}%<span style="opacity:.6;font-weight:400">/週</span>{% endif %}
         </div>
         {% endif %}
         <div class="factor-why">{{ why.get(i.key, '') }}</div>
@@ -103,24 +103,26 @@
 
   <script>
     // ---- performance heatmap ----
-    const HEAT_SCALE = { '1d': 3, '1w': 6, '1m': 12, '3m': 25, 'ytd': 40 };
+    const HEAT_SCALE = { '1d': 2.5, '1w': 5, '1m': 10, '3m': 16, '1y': 30, 'qtd': 18, 'ytd': 22 };
     function heatStyle(v, key) {
       if (v == null) return '';
-      const a = Math.min(Math.abs(v) / (HEAT_SCALE[key] || 10), 1) * 0.8 + 0.06;
-      const rgb = v >= 0 ? '7,151,106' : '216,50,74';
-      return 'background:rgba(' + rgb + ',' + a.toFixed(2) + ');' + (a > 0.5 ? 'color:#fff;' : '');
+      const t = Math.min(Math.abs(v) / (HEAT_SCALE[key] || 10), 1);
+      const a = (0.15 + 0.78 * t).toFixed(2);
+      const rgb = v >= 0 ? '22,163,108' : '224,49,76';
+      return 'background:rgba(' + rgb + ',' + a + ');' + (t > 0.4 ? 'color:#fff;font-weight:700;' : '');
     }
     fetch('/heatmap.json').then(r => r.json()).then(d => {
       const hz = d.horizons || [];
       document.getElementById('heatHead').innerHTML =
-        '<tr><th>資產 / 因子</th>' + hz.map(h => '<th>' + h.label + '</th>').join('') + '</tr>';
+        '<tr><th>資產 / 因子</th><th>收盤</th>' + hz.map(h => '<th>' + h.label + '</th>').join('') + '</tr>';
       const body = document.getElementById('heatBody'); body.innerHTML = '';
       (d.groups || []).forEach(g => {
         const gr = document.createElement('tr'); gr.className = 'heat-group';
-        gr.innerHTML = '<td colspan="' + (hz.length + 1) + '">' + g.name + '</td>';
+        gr.innerHTML = '<td colspan="' + (hz.length + 2) + '">' + g.name + '</td>';
         body.appendChild(gr);
         g.rows.forEach(row => {
-          let cells = '<td>' + row.label + '</td>';
+          const close = (row.close != null) ? row.close.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—';
+          let cells = '<td>' + row.label + '</td><td class="num heat-close">' + close + '</td>';
           hz.forEach(h => {
             const v = row.changes ? row.changes[h.key] : null;
             const txt = (v == null) ? '—' : (v > 0 ? '+' : '') + v.toFixed(1) + '%';
