@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ title }} · Portfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>Portfolio</div>
+    <nav>
+      <a href="/">儀表板</a>
+      <a href="/transactions">交易</a>
+      <a class="active" href="/report">日報</a>
+    </nav>
+    <div class="bar-right">
+      <button class="icon-btn" data-theme-toggle aria-label="切換主題">☾</button>
+    </div>
+  </div>
+
+  <main style="max-width:920px">
+    <h1 class="page-title">📊 投資組合日報</h1>
+    <div class="page-sub">{{ report.as_of }} · <a href="/">回儀表板</a></div>
+
+    <section class="stat-row reveal">
+      <div class="stat">
+        <div class="k">總值 (USD)</div>
+        <div class="v sub num">${{ "{:,.0f}".format(report.total_usd) }}</div>
+      </div>
+      <div class="stat">
+        <div class="k">未實現損益</div>
+        <div class="v sub num {{ 'pos' if report.unrealized_pl_usd >= 0 else 'neg' }}">
+          ${{ "{:,.0f}".format(report.unrealized_pl_usd) }}
+          <span style="font-size:.6em">({{ "%+.1f"|format(report.roi_pct) }}%)</span>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="k">當日</div>
+        <div class="v sub num {{ 'pos' if report.daily_return_pct >= 0 else 'neg' }}">{{ "%+.2f"|format(report.daily_return_pct) }}%</div>
+      </div>
+    </section>
+
+    <div class="section-label">持倉觀察</div>
+    {% for h in report.holdings %}
+    <div class="holding reveal">
+      <div class="holding-top">
+        <span class="sym">{{ h.symbol }}</span>
+        <span class="op {{ h.opinion or 'hold' }}">{{ h.opinion_label }}{% if h.confidence %} · {{ h.confidence }}{% endif %}</span>
+        <span class="roi num {{ 'pos' if h.roi_pct >= 0 else 'neg' }}">{{ "%+.1f"|format(h.roi_pct) }}%</span>
+        <span class="mv num">市值 ${{ "{:,.0f}".format(h.value_usd) }}</span>
+      </div>
+      {% if h.rationale %}<div class="rationale">{{ h.rationale }}</div>{% endif %}
+    </div>
+    {% endfor %}
+
+    <div class="disclaimer">⚠️ {{ report.disclaimer }}</div>
+  </main>
+</body>
+
+</html>

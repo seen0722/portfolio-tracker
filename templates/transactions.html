@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>交易管理 · Portfolio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</head>
+
+<body>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>Portfolio</div>
+    <nav>
+      <a href="/">儀表板</a>
+      <a class="active" href="/transactions">交易</a>
+      <a href="/report">日報</a>
+    </nav>
+    <div class="bar-right">
+      <button class="icon-btn" data-theme-toggle aria-label="切換主題">☾</button>
+    </div>
+  </div>
+
+  <main>
+    <h1 class="page-title">交易管理</h1>
+    <div class="page-sub">不可變帳本 · 共 {{ transactions|length }} 筆</div>
+
+    <div class="card reveal" style="margin-bottom:1.5rem">
+      <div class="panel-head" style="padding:0 0 1rem"><h2>新增交易</h2></div>
+      <form class="form-grid" method="post" action="/transactions">
+        <label class="field">類型
+          <select name="txn_type" required>{% for t in txn_types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select>
+        </label>
+        <label class="field">標的<input type="text" name="symbol" placeholder="NVDA / 留空=現金" /></label>
+        <label class="field">日期<input type="date" name="trade_date" value="{{ today }}" required /></label>
+        <label class="field">數量<input type="number" step="any" name="quantity" placeholder="股數 / 金額" /></label>
+        <label class="field">單價<input type="number" step="any" name="price" placeholder="每股" /></label>
+        <label class="field">手續費<input type="number" step="any" name="fee" value="0" /></label>
+        <label class="field">幣別<input type="text" name="currency" value="USD" /></label>
+        <label class="field">新代號<input type="text" name="related_symbol" placeholder="換股/併購" /></label>
+        <label class="field">比例<input type="number" step="any" name="ratio" placeholder="分割比" /></label>
+        <button class="btn" type="submit">新增交易</button>
+      </form>
+    </div>
+
+    <div class="table-wrap reveal d1">
+      <table>
+        <thead>
+          <tr><th>日期</th><th>類型</th><th>標的</th><th>數量</th><th>單價</th><th>手續費</th><th>幣別</th><th>備註</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for t in transactions %}
+          <tr>
+            <td class="num">{{ t.trade_date.isoformat() }}</td>
+            <td><span class="tag {{ 'buy' if t.txn_type.value == 'buy' else 'sell' if t.txn_type.value == 'sell' else 'other' }}">{{ t.txn_type.value }}</span></td>
+            <td class="sym">{{ t.symbol }}</td>
+            <td class="num">{{ "{:,.4f}".format(t.quantity) }}</td>
+            <td class="num">{{ "{:,.4f}".format(t.price) if t.price else "—" }}</td>
+            <td class="num">{{ "%.2f"|format(t.fee) if t.fee else "—" }}</td>
+            <td>{{ t.currency }}</td>
+            <td>{{ t.note or "—" }}</td>
+            <td>
+              <form method="post" action="/transactions/{{ t.id }}/delete" onsubmit="return confirm('刪除這筆交易？');">
+                <button type="submit" class="btn-link-danger">刪除</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+
+</html>

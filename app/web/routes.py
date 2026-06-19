@@ -2,109 +2,58 @@
 
 from __future__ import annotations
 
+import math
+from dataclasses import asdict
 from datetime import date
-from typing import Dict, List
 
 import pandas as pd
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
-
-from app.dependencies import (
-    portfolio_service,
-    history_repository,
-    portfolio_repository,
-    price_fetcher,
-    analysis_service
-)
-from app.domain.models import Portfolio, Stock, Cash
+from app.dependencies import container
+from app.domain.transactions import CASH_SYMBOL, Transaction, TxnType
 from app.infrastructure.market_data import PriceFetchError
+from app.services.cost_basis import build_positions
 
 bp = Blueprint("main", __name__)
 
 MAX_HISTORY_POINTS = 90
 
-def _resolve_record_date(requested_date: str | None) -> str:
-    if requested_date:
-        return requested_date
-    history_df = history_repository.load()
-    if not history_df.empty:
-        return history_df.sort_values("date").iloc[-1]["date"]
-    return date.today().isoformat()
 
 def _chart_payload(history_df):
-    import math
     limited = history_df.tail(MAX_HISTORY_POINTS)
     labels = limited["date"].tolist()
-    
-    def clean_val(v):
-        return None if pd.isna(v) or math.isnan(v) or math.isinf(v) else round(v, 2)
+
+    def clean_val(value):
+        return None if pd.isna(value) or math.isnan(value) or math.isinf(value) else round(value, 2)
 
     totals = [clean_val(value) for value in limited["total_usd"].tolist()]
     returns = [clean_val(value) for value in limited["daily_return_pct"].tolist()]
     return labels, totals, returns
 
+
 @bp.route("/")
 def dashboard():
-    requested_date = request.args.get("date")
-    record_date = _resolve_record_date(requested_date)
-    
-    try:
-        portfolio = portfolio_repository.load()
-    except (FileNotFoundError, ValueError) as exc:
-        abort(404, f"Failed to load portfolio file: {exc}")
+    record_date = request.args.get("date") or date.today().isoformat()
 
     try:
-        result = portfolio_service.calculate(portfolio)
+        result = container.valuation_service.value()
     except PriceFetchError as exc:
-        abort(503, f"Failed to calculate portfolio totals: {exc}")
+        abort(503, f"Failed to value portfolio: {exc}")
 
-    history_df = history_repository.load()
-    
-    # If today's data is missing or we are looking at today, we might want to simulate/preview
-    # But for now, let's stick to the original logic: simulate if empty or date missing
-    if history_df.empty or record_date not in history_df["date"].values:
-        # We need a simulate function. 
-        # In the original code, simulate_history was in main.py but used in dashboard.
-        # We should probably move simulate logic to service or repository.
-        # For now, I'll inline a simple simulation or add it to repository.
-        # Actually, let's add a simulate method to HistoryRepository or just do it here.
-        # The original simulate_history created a temporary dataframe.
-        
-        # Construct a temporary row
-        import pandas as pd
-        new_row = {
-            "date": record_date,
-            "total_usd": round(result.totals.usd, 2),
-            "total_twd": round(result.totals.twd, 2),
-            "daily_return_pct": 0.0,
-        }
-        if not history_df.empty:
-             history_df = pd.concat([history_df, pd.DataFrame([new_row])], ignore_index=True)
-        else:
-             history_df = pd.DataFrame([new_row])
-             
-        # Recalculate returns
-        history_df["date"] = pd.to_datetime(history_df["date"])
-        history_df.sort_values("date", inplace=True)
-        history_df["daily_return_pct"] = history_df["total_usd"].pct_change().fillna(0.0) * 100.0
-        history_df["date"] = history_df["date"].dt.strftime("%Y-%m-%d")
+    # Real NAV series: reconstruct from historical closes on first load, then
+    # record today's live point. Replaces the old simulated-history hack.
+    nav = container.nav_service
+    nav.ensure_history()
+    nav.snapshot(result.totals.usd, result.totals.twd, date.today().isoformat())
+    history_df = nav.history()
 
-    if history_df.empty:
-        abort(500, "History dataset is empty.")
-
-    # Get summary for the record date
-    # If the record date is simulated, it's in the df.
-    # If it's historical, it's in the df.
-    try:
-        summary_row = history_df[history_df["date"] == record_date].iloc[-1]
-    except IndexError:
-        # Fallback to last available
-        summary_row = history_df.iloc[-1]
-
-    # Calculate advanced metrics
-    analysis = analysis_service.analyze_history(history_df)
-
-    chart_labels, chart_totals, chart_returns = _chart_payload(history_df)
+    daily_return = (
+        float(history_df["daily_return_pct"].iloc[-1]) if not history_df.empty else 0.0
+    )
+    analysis = container.analysis_service.analyze_history(history_df)
+    chart_labels, chart_totals, chart_returns = (
+        _chart_payload(history_df) if not history_df.empty else ([], [], [])
+    )
 
     allocation_labels = [pos.name for pos in result.positions if pos.portfolio_pct > 0]
     allocation_data = [round(pos.portfolio_pct, 2) for pos in result.positions if pos.portfolio_pct > 0]
@@ -114,9 +63,9 @@ def dashboard():
         result=result,
         record_date=record_date,
         summary={
-            "total_usd": summary_row["total_usd"],
-            "total_twd": summary_row["total_twd"],
-            "daily_return_pct": summary_row["daily_return_pct"],
+            "total_usd": result.totals.usd,
+            "total_twd": result.totals.twd,
+            "daily_return_pct": daily_return,
         },
         analysis=analysis,
         history_labels=chart_labels,
@@ -124,60 +73,100 @@ def dashboard():
         history_returns=chart_returns,
         allocation_labels=allocation_labels,
         allocation_data=allocation_data,
-        price_sources=price_fetcher.describe_sources(),
+        price_sources=container.price_fetcher.describe_sources(),
     )
 
-@bp.route("/edit", methods=["GET", "POST"])
-def edit_portfolio():
+
+@bp.route("/transactions", methods=["GET", "POST"])
+def transactions():
     if request.method == "POST":
-        # Process form data
-        stocks = []
-        symbols = request.form.getlist("stock_symbol[]")
-        shares = request.form.getlist("stock_shares[]")
-        costs = request.form.getlist("stock_cost[]")
-        
-        for s, sh, c in zip(symbols, shares, costs):
-            if s and sh:
-                stocks.append(Stock(
-                    symbol=s.strip().upper(),
-                    shares=float(sh),
-                    average_cost=float(c) if c else 0.0
-                ))
+        symbol = (request.form.get("symbol") or "").strip().upper() or CASH_SYMBOL
+        txn = Transaction(
+            txn_type=TxnType(request.form["txn_type"]),
+            symbol=symbol,
+            trade_date=date.fromisoformat(request.form["trade_date"]),
+            quantity=float(request.form.get("quantity") or 0),
+            price=float(request.form.get("price") or 0),
+            fee=float(request.form.get("fee") or 0),
+            currency=(request.form.get("currency") or "USD").strip().upper(),
+            related_symbol=(request.form.get("related_symbol") or "").strip().upper(),
+            ratio=float(request.form.get("ratio") or 0),
+            note=(request.form.get("note") or "").strip(),
+        )
+        container.ledger.add(txn)
+        return redirect(url_for("main.transactions"))
 
-        cash_list = []
-        currencies = request.form.getlist("cash_currency[]")
-        amounts = request.form.getlist("cash_amount[]")
-        
-        for cur, amt in zip(currencies, amounts):
-            if cur and amt:
-                cash_list.append(Cash(
-                    currency=cur.strip().upper(),
-                    amount=float(amt)
-                ))
+    txns = list(reversed(container.ledger.all()))
+    return render_template(
+        "transactions.html",
+        transactions=txns,
+        txn_types=[t.value for t in TxnType],
+        today=date.today().isoformat(),
+    )
 
-        new_portfolio = Portfolio(stocks=stocks, cash=cash_list)
 
-        try:
-            portfolio_repository.save(new_portfolio)
-            return redirect(url_for("main.dashboard", date=date.today().isoformat()))
-        except Exception as e:
-            abort(500, f"Failed to save portfolio: {e}")
-            
-    # GET request
-    try:
-        portfolio = portfolio_repository.load()
-    except (FileNotFoundError, ValueError):
-        portfolio = Portfolio()
-        
-    # Convert back to dict-like structure for template if needed, 
-    # or update template to use objects. 
-    # The existing template uses `portfolio.stocks` (list of dicts).
-    # Our `Portfolio` object has `stocks` as list of `Stock` objects.
-    # Jinja2 can access attributes `stock.symbol` same as `stock['symbol']`? 
-    # No, `stock['symbol']` is dict access. `stock.symbol` is attribute access.
-    # We need to check the template `edit_portfolio.html`.
-    
-    return render_template("edit_portfolio.html", portfolio=portfolio)
+@bp.route("/transactions/<int:txn_id>/delete", methods=["POST"])
+def delete_transaction(txn_id: int):
+    container.ledger.delete(txn_id)
+    return redirect(url_for("main.transactions"))
+
+
+@bp.route("/capex.json")
+def capex_signals():
+    """Auto-computed AI capex signals for the watch-list."""
+    symbols_arg = request.args.get("symbols")
+    symbols = (
+        [s.strip().upper() for s in symbols_arg.split(",") if s.strip()]
+        if symbols_arg
+        else None
+    )
+    signals = container.capex_service.collect(symbols)
+    return jsonify([asdict(signal) for signal in signals])
+
+
+@bp.route("/signals.json")
+def signals():
+    """Deterministic EvidenceBundles for the current holdings."""
+    symbols_arg = request.args.get("symbols")
+    if symbols_arg:
+        symbols = [s.strip().upper() for s in symbols_arg.split(",") if s.strip()]
+    else:
+        state = build_positions(container.ledger.all())
+        symbols = [pos.symbol for pos in state.positions]
+    bundles = container.signal_orchestrator.bundles_for(symbols)
+    return jsonify({sym: bundle.to_dict() for sym, bundle in bundles.items()})
+
+
+@bp.route("/advice.json")
+def advice():
+    """Read-only, guardrailed opinion cards for the current holdings."""
+    symbols_arg = request.args.get("symbols")
+    if symbols_arg:
+        symbols = [s.strip().upper() for s in symbols_arg.split(",") if s.strip()]
+        contexts = {}
+    else:
+        result = container.valuation_service.value()
+        stock_positions = [p for p in result.positions if p.category == "stock"]
+        symbols = [p.name for p in stock_positions]
+        contexts = {
+            p.name: {"roi_pct": p.roi_pct, "unrealized_pl_usd": p.unrealized_pl_usd}
+            for p in stock_positions
+        }
+    cards = container.advice_service.advise_many(symbols, contexts)
+    return jsonify({sym: card.to_dict() for sym, card in cards.items()})
+
+
+@bp.route("/report")
+def report_preview():
+    """HTML preview of the daily report (same content the scheduler pushes)."""
+    report = container.report_service.generate()
+    return render_template("report.html", report=report.summary, title=report.title)
+
+
+@bp.route("/report.json")
+def report_json():
+    return jsonify(container.report_service.generate().summary)
+
 
 @bp.route("/healthz")
 def healthcheck():

@@ -4,525 +4,174 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>投資組合儀表板</title>
+  <title>Portfolio · 投資組合</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}" />
+  <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-  <style>
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @keyframes shimmer {
-      0% { background-position: -1000px 0; }
-      100% { background-position: 1000px 0; }
-    }
-
-    @keyframes glow {
-      0%, 100% { box-shadow: 0 0 10px rgba(56, 189, 248, 0), 0 8px 24px rgba(0, 0, 0, 0.15); }
-      50% { box-shadow: 0 0 20px rgba(56, 189, 248, 0.4), 0 12px 32px rgba(56, 189, 248, 0.1); }
-    }
-
-    :root {
-      color-scheme: light dark;
-      --bg: #0f172a;
-      --panel: #1e293b;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --accent: #38bdf8;
-      --accent-secondary: #0ea5e9;
-      --positive: #22c55e;
-      --negative: #f43f5e;
-      --card-bg: rgba(30, 41, 59, 0.7);
-      --border: rgba(255, 255, 255, 0.1);
-      --border-light: rgba(255, 255, 255, 0.05);
-      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    body {
-      margin: 0;
-      font-family: "Inter", "Noto Sans TC", system-ui, -apple-system, sans-serif;
-      background: radial-gradient(circle at top left, #1e293b, #0f172a);
-      color: var(--text);
-      min-height: 100vh;
-      animation: fadeIn 0.6s ease-out;
-    }
-
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
-
-    header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1rem;
-      animation: slideUp 0.5s ease-out;
-    }
-
-    header h1 {
-      font-size: 2.2rem;
-      margin: 0;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 2rem;
-      margin: 2.5rem 0;
-      animation: slideUp 0.6s ease-out 0.1s backwards;
-    }
-
-    .card {
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      border-radius: 1rem;
-      padding: 2rem;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      transition: var(--transition);
-      position: relative;
-      overflow: visible;
-    }
-
-    .card:hover {
-      transform: translateY(-4px);
-      border-color: rgba(56, 189, 248, 0.5);
-      box-shadow: 0 8px 30px rgba(56, 189, 248, 0.1);
-      background: rgba(30, 41, 59, 0.6);
-    }
-
-    .card h3 {
-      margin: 0 0 1.2rem;
-      font-size: 0.9rem;
-      color: var(--muted);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      font-weight: 600;
-    }
-
-    .card p {
-      margin: 0;
-      font-size: 2.2rem;
-      font-weight: 700;
-      color: #48d1cc;
-      line-height: 1.3;
-    }
-
-    .daily-return {
-      font-size: 1.2rem !important;
-      -webkit-text-fill-color: unset !important;
-      background: none !important;
-      margin-top: 0.8rem;
-      font-weight: 600;
-    }
-
-    .daily-return.positive {
-      color: #10b981;
-    }
-
-    .daily-return.negative {
-      color: #ef4444;
-    }
-
-    .charts-grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 1.5rem;
-      margin-bottom: 2rem;
-      animation: slideUp 0.7s ease-out 0.2s backwards;
-    }
-
-    .chart-panel {
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      border-radius: 1rem;
-      padding: 1.75rem;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-      transition: var(--transition);
-      position: relative;
-      overflow: visible;
-    }
-
-    .chart-panel:hover {
-      border-color: rgba(56, 189, 248, 0.5);
-      transform: translateY(-4px);
-      box-shadow: 0 8px 30px rgba(56, 189, 248, 0.1);
-      background: rgba(30, 41, 59, 0.6);
-    }
-
-    .chart-panel::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg, rgba(56, 189, 248, 0.05) 0%, transparent 100%);
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      pointer-events: none;
-    }
-
-    .chart-panel:hover::before {
-      opacity: 1;
-    }
-
-    .chart-title {
-      margin: 0 0 1.5rem;
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: var(--text);
-      letter-spacing: -0.01em;
-    }
-
-    @media (max-width: 1024px) {
-      .charts-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .edit-btn {
-      background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
-      color: var(--bg);
-      padding: 0.65rem 1.5rem;
-      border-radius: 0.5rem;
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 0.9rem;
-      transition: var(--transition);
-      border: none;
-      cursor: pointer;
-      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
-      letter-spacing: 0.05em;
-    }
-
-    .edit-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(56, 189, 248, 0.4);
-    }
-
-    .edit-btn:active {
-      transform: translateY(0);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(30, 41, 59, 0.3) 100%);
-      border-radius: 1.25rem;
-      overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-      animation: slideUp 0.8s ease-out 0.3s backwards;
-      border: 1px solid var(--border);
-    }
-
-    th,
-    td {
-      padding: 1.1rem 0.95rem;
-      text-align: right;
-      transition: background 0.2s ease;
-      font-size: 0.95rem;
-    }
-
-    th {
-      text-transform: uppercase;
-      font-size: 0.8rem;
-      letter-spacing: 0.1em;
-      color: var(--muted);
-      background: linear-gradient(90deg, rgba(56, 189, 248, 0.1) 0%, rgba(56, 189, 248, 0.05) 100%);
-      border-bottom: 2px solid var(--border);
-      font-weight: 700;
-    }
-
-    td:first-child,
-    th:first-child {
-      text-align: left;
-      padding-left: 1.5rem;
-    }
-
-    tbody tr {
-      transition: all 0.2s ease;
-      border-bottom: 1px solid var(--border-light);
-    }
-
-    tbody tr:nth-child(even) {
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    tbody tr:hover {
-      background: rgba(56, 189, 248, 0.1);
-      border-bottom-color: var(--accent);
-    }
-
-    tbody tr:not(:last-child) {
-      border-bottom: 1px solid var(--border-light);
-    }
-
-    .sources {
-      color: var(--muted);
-      font-size: 1rem;
-      margin-top: 0.5rem;
-      font-weight: 500;
-    }
-
-    @media (max-width: 640px) {
-
-      th,
-      td {
-        font-size: 0.85rem;
-      }
-    }
-  </style>
 </head>
 
 <body>
-  <div class="container">
-    <header>
-      <h1>投資組合儀表板</h1>
-      <div style="display: flex; gap: 1rem; align-items: center;">
-        <div class="sources">資料日期：{{ record_date }} ｜ {{ price_sources }}</div>
-        <a href="/edit" class="edit-btn">編輯組合</a>
-      </div>
-    </header>
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>Portfolio</div>
+    <nav>
+      <a class="active" href="/">儀表板</a>
+      <a href="/transactions">交易</a>
+      <a href="/report">日報</a>
+    </nav>
+    <div class="bar-right">
+      <div class="meta">{{ record_date }}<br />{{ price_sources }}</div>
+      <button class="icon-btn" data-theme-toggle aria-label="切換主題">☾</button>
+    </div>
+  </div>
 
-    <section class="summary">
-      <div class="card">
-        <h3>Total USD</h3>
-        <p>${{ "%.2f"|format(summary.total_usd) }}</p>
+  <main>
+    <section class="hero reveal">
+      <div class="cell lead">
+        <div class="k">總資產 (USD)</div>
+        <div class="v num">${{ "{:,.0f}".format(summary.total_usd) }}</div>
+        <div class="sub-line num">NT${{ "{:,.0f}".format(summary.total_twd) }}</div>
       </div>
-      <div class="card">
-        <h3>Total TWD</h3>
-        <p>NT${{ "%.2f"|format(summary.total_twd) }}</p>
-      </div>
-      <div class="card">
-        <h3>Daily Return</h3>
-        <p class="daily-return {{ 'positive' if summary.daily_return_pct >= 0 else 'negative' }}">
-          {{ "%.2f"|format(summary.daily_return_pct) }}%
-        </p>
-      </div>
-      <div class="card">
-        <h3>Unrealized P/L</h3>
-        <p class="daily-return {{ 'positive' if result.totals.unrealized_pl_usd >= 0 else 'negative' }}">
-          ${{ "{:,.2f}".format(result.totals.unrealized_pl_usd) }}
-          <span style="font-size: 0.6em; opacity: 0.8;">({{ "%.2f"|format(result.totals.roi_pct) }}%)</span>
-        </p>
-      </div>
-    </section>
-
-    <section class="charts-grid">
-      <div class="chart-panel">
-        <h2 class="chart-title">資產歷史走勢</h2>
-        <canvas id="historyChart" width="400" height="200"></canvas>
-      </div>
-      <div class="chart-panel">
-        <h2 class="chart-title">資產配置</h2>
-        <div style="position: relative; height: 300px; width: 100%; display: flex; justify-content: center;">
-          <canvas id="allocationChart"></canvas>
+      <div class="cell">
+        <div class="k">當日變動</div>
+        <div class="v sub">
+          <span class="chip {{ 'pos' if summary.daily_return_pct >= 0 else 'neg' }} num">{{ "%+.2f"|format(summary.daily_return_pct) }}%</span>
         </div>
       </div>
+      <div class="cell">
+        <div class="k">未實現損益</div>
+        <div class="v sub num {{ 'pos' if result.totals.unrealized_pl_usd >= 0 else 'neg' }}">${{ "{:,.0f}".format(result.totals.unrealized_pl_usd) }}</div>
+        <div class="sub-line num {{ 'pos' if result.totals.roi_pct >= 0 else 'neg' }}">{{ "%+.2f"|format(result.totals.roi_pct) }}%</div>
+      </div>
+      <div class="cell">
+        <div class="k">總成本 (USD)</div>
+        <div class="v sub num">${{ "{:,.0f}".format(result.totals.cost_usd) }}</div>
+        <div class="sub-line">{{ result.positions|selectattr("category","equalto","stock")|list|length }} 檔持倉</div>
+      </div>
     </section>
 
-    <section>
+    <section class="grid reveal d1">
+      <div class="panel">
+        <div class="panel-head"><h2>資產走勢</h2></div>
+        {% if analysis %}
+        <div class="metrics">
+          <div class="metric"><div class="mk">年化波動</div><div class="mv num">{{ "%.1f"|format(analysis.volatility) }}%</div></div>
+          <div class="metric"><div class="mk">Sharpe</div><div class="mv num">{{ "%.2f"|format(analysis.sharpe_ratio) }}</div></div>
+          <div class="metric"><div class="mk">最大回撤</div><div class="mv num neg">{{ "%.1f"|format(analysis.max_drawdown) }}%</div></div>
+        </div>
+        {% endif %}
+        <div class="panel-body" style="padding-top:.25rem"><canvas id="navChart" height="120"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>資產配置</h2></div>
+        <div class="panel-body"><div style="height:240px"><canvas id="allocChart"></canvas></div></div>
+      </div>
+    </section>
+
+    <div class="table-wrap reveal d2">
       <table>
         <thead>
           <tr>
-            <th>標的/貨幣</th>
-            <th>類型</th>
-            <th>數量</th>
-            <th>單價</th>
-            <th>幣別</th>
-            <th>價值(USD)</th>
-            <th>價值(TWD)</th>
-            <th>成本(USD)</th>
-            <th>損益(USD)</th>
-            <th>報酬率%</th>
-            <th>佔比%</th>
+            <th>標的</th><th>數量</th><th>現價</th><th>市值 (USD)</th><th>成本</th>
+            <th>損益 (USD)</th><th>報酬率</th><th>佔比</th><th>訊號</th>
+            <th>AI 觀察 <span class="badge-ai">BETA</span></th>
           </tr>
         </thead>
         <tbody>
           {% for pos in result.positions %}
           <tr>
-            <td>{{ pos.name }}</td>
-            <td>{{ pos.category }}</td>
-            <td>{{ "%.4f"|format(pos.quantity) if pos.quantity is not none else "-" }}</td>
-            <td>
-              {% if pos.unit_price is not none %}
-              {{ "%.4f"|format(pos.unit_price) }}
-              {% else %}
-              -
-              {% endif %}
-            </td>
-            <td>{{ pos.price_currency or "-" }}</td>
-            <td>${{ "{:,.2f}".format(pos.value_usd) }}</td>
-            <td>NT${{ "{:,.2f}".format(pos.value_twd) }}</td>
-            <td>
-              {% if pos.average_cost is not none %}
-              ${{ "{:,.2f}".format(pos.total_cost_usd) }}
-              {% else %}
-              -
-              {% endif %}
-            </td>
-            <td class="{{ 'daily-return positive' if pos.unrealized_pl_usd >= 0 else 'daily-return negative' }}">
-              {% if pos.average_cost is not none %}
-              ${{ "{:,.2f}".format(pos.unrealized_pl_usd) }}
-              {% else %}
-              -
-              {% endif %}
-            </td>
-            <td class="{{ 'daily-return positive' if pos.unrealized_pl_usd >= 0 else 'daily-return negative' }}">
-              {% if pos.average_cost is not none %}
-              {{ "%.2f"|format(pos.roi_pct) }}%
-              {% else %}
-              -
-              {% endif %}
-            </td>
-            <td>{{ "%.2f"|format(pos.portfolio_pct) }}%</td>
+            <td><span class="sym">{{ pos.name }}<small class="cat">{{ pos.category }} · {{ pos.price_currency or '—' }}</small></span></td>
+            <td class="num">{{ "{:,.2f}".format(pos.quantity) if pos.quantity is not none else "—" }}</td>
+            <td class="num">{{ "{:,.2f}".format(pos.unit_price) if pos.unit_price is not none else "—" }}</td>
+            <td class="num">${{ "{:,.0f}".format(pos.value_usd) }}</td>
+            <td class="num">{{ "${:,.0f}".format(pos.total_cost_usd) if pos.average_cost is not none else "—" }}</td>
+            <td class="num {{ 'pos' if pos.unrealized_pl_usd >= 0 else 'neg' }}">{{ ("${:,.0f}".format(pos.unrealized_pl_usd)) if pos.average_cost is not none else "—" }}</td>
+            <td class="num {{ 'pos' if pos.roi_pct >= 0 else 'neg' }}">{{ ("%+.1f"|format(pos.roi_pct) ~ "%") if pos.average_cost is not none else "—" }}</td>
+            <td class="num">{{ "%.1f"|format(pos.portfolio_pct) }}%</td>
+            <td>{% if pos.category == 'stock' %}<span class="sigcell loading" data-sym="{{ pos.name }}">···</span>{% else %}<span class="cat">—</span>{% endif %}</td>
+            <td style="text-align:right">{% if pos.category == 'stock' %}<span class="op na" data-op="{{ pos.name }}">···</span>{% else %}<span class="cat">—</span>{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-    </section>
-  </div>
+    </div>
+
+    <footer>⚠️ 訊號與 AI 觀察由量化資料自動彙整,僅供教育參考,不構成投資建議。</footer>
+  </main>
 
   <script>
-    // Data from Flask
-    const labels = {{ history_labels | tojson}};
-    const totals = {{ history_totals | tojson}};
-    const returns = {{ history_returns | tojson}};
-    const allocLabels = {{ allocation_labels | tojson}};
-    const allocData = {{ allocation_data | tojson}};
+    const navLabels = {{ history_labels | tojson }};
+    const navTotals = {{ history_totals | tojson }};
+    const allocLabels = {{ allocation_labels | tojson }};
+    const allocData = {{ allocation_data | tojson }};
+    const ALLOC_COLORS = ['#2350e8','#07976a','#c5860f','#8b5cf6','#ec4899','#06b6d4','#64748b','#f97316','#14b8a6','#a855f7'];
 
-    // Common Chart Options
-    Chart.defaults.color = '#94a3b8';
-    Chart.defaults.borderColor = 'rgba(148, 163, 184, 0.1)';
-    Chart.defaults.font.family = "'Inter', 'Noto Sans TC', sans-serif";
+    function hexA(hex, a) {
+      hex = (hex || '#2350e8').replace('#', '');
+      if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+      const n = parseInt(hex, 16);
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+    }
+    function tc() {
+      return window.PortfolioTheme ? window.PortfolioTheme.colors()
+        : { ink2: '#3a465c', muted: '#76849a', line: '#e7ebf2', accent: '#2350e8', surface: '#fff' };
+    }
 
-    const ctx = document.getElementById("historyChart");
-    new Chart(ctx, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "總資產 (USD)",
-            data: totals,
-            borderColor: "#38bdf8",
-            backgroundColor: "rgba(56, 189, 248, 0.15)",
-            tension: 0.25,
-            fill: true,
-            yAxisID: "y",
-          },
-          {
-            label: "每日報酬率 (%)",
-            data: returns,
-            borderColor: "#f97316",
-            backgroundColor: "rgba(249, 115, 22, 0.25)",
-            tension: 0.3,
-            fill: false,
-            yAxisID: "y1",
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        interaction: {
-          intersect: false,
-          mode: "index",
-        },
-        stacked: false,
-        plugins: {
-          legend: {
-            labels: {
-              color: "#e2e8f0",
-            },
-          },
-        },
-        scales: {
-          y: {
-            type: "linear",
-            display: true,
-            position: "left",
-            grid: {
-              color: "rgba(148, 163, 184, 0.2)",
-            },
-            ticks: {
-              color: "#e2e8f0",
-            },
-          },
-          y1: {
-            type: "linear",
-            display: true,
-            position: "right",
-            grid: {
-              drawOnChartArea: false,
-            },
-            ticks: {
-              color: "#e2e8f0",
-            },
-          },
-          x: {
-            ticks: {
-              color: "#e2e8f0",
-            },
-          },
-        },
-      },
-    });
+    let navChart, allocChart;
+    function buildCharts() {
+      const c = tc();
+      Chart.defaults.font.family = "'Inter', 'Noto Sans TC', sans-serif";
+      Chart.defaults.color = c.muted;
+      if (navChart) navChart.destroy();
+      if (allocChart) allocChart.destroy();
 
-    // Allocation Pie Chart
-    const ctxAlloc = document.getElementById("allocationChart");
-    new Chart(ctxAlloc, {
-      type: "doughnut",
-      data: {
-        labels: allocLabels,
-        datasets: [{
-          data: allocData,
-          backgroundColor: [
-            '#38bdf8', '#818cf8', '#c084fc', '#f472b6', '#fb7185',
-            '#22d3ee', '#34d399', '#a3e635', '#facc15', '#fb923c'
-          ],
-          borderWidth: 0,
-          hoverOffset: 4
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'right',
-            labels: {
-              color: '#e2e8f0',
-              padding: 20,
-              usePointStyle: true,
-            }
-          },
-          tooltip: {
-            callbacks: {
-              label: function (context) {
-                return context.label + ': ' + context.raw + '%';
-              }
-            }
-          }
-        },
-        layout: {
-          padding: 20
-        }
-      }
-    });
+      navChart = new Chart(document.getElementById('navChart'), {
+        type: 'line',
+        data: { labels: navLabels, datasets: [{
+          label: '總資產 (USD)', data: navTotals, borderColor: c.accent, borderWidth: 2,
+          fill: true, tension: .3, pointRadius: 0,
+          backgroundColor: (ctx) => { const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 260); g.addColorStop(0, hexA(c.accent, .22)); g.addColorStop(1, hexA(c.accent, 0)); return g; },
+        }]},
+        options: { responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } },
+                    y: { grid: { color: c.line }, ticks: { callback: v => '$' + (v / 1000).toFixed(0) + 'k' } } } }
+      });
+
+      allocChart = new Chart(document.getElementById('allocChart'), {
+        type: 'doughnut',
+        data: { labels: allocLabels, datasets: [{ data: allocData, borderWidth: 2, borderColor: c.surface, backgroundColor: ALLOC_COLORS }] },
+        options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
+          plugins: { legend: { position: 'right', labels: { color: c.ink2, boxWidth: 10, usePointStyle: true, font: { size: 11 } } },
+                     tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.raw + '%' } } } }
+      });
+    }
+    buildCharts();
+    window.addEventListener('themechange', buildCharts);
+
+    // Stale-while-revalidate: fill signal lights + AI opinions after first paint.
+    const LIGHTS = { green: 'green', yellow: 'yellow', red: 'red', unknown: 'unknown' };
+    fetch('/signals.json').then(r => r.json()).then(data => {
+      document.querySelectorAll('.sigcell[data-sym]').forEach(el => {
+        const b = data[el.dataset.sym];
+        if (!b || !b.signals.length) { el.textContent = '—'; el.classList.remove('loading'); return; }
+        el.classList.remove('loading'); el.innerHTML = '';
+        el.title = b.signals.map(s => '[' + s.signal_id + '] ' + s.evidence).join('\n');
+        b.signals.forEach(s => { const d = document.createElement('span'); d.className = 'sig-dot ' + (LIGHTS[s.light] || 'unknown'); el.appendChild(d); });
+      });
+    }).catch(() => document.querySelectorAll('.sigcell.loading').forEach(el => el.textContent = '—'));
+
+    fetch('/advice.json').then(r => r.json()).then(data => {
+      document.querySelectorAll('.op[data-op]').forEach(el => {
+        const c = data[el.dataset.op];
+        if (!c) { el.textContent = '—'; el.className = 'op na'; return; }
+        el.className = 'op ' + c.opinion;
+        el.textContent = c.opinion_label;
+        el.title = (c.rationale || '') + '\n\n' + (c.disclaimer || '');
+      });
+    }).catch(() => document.querySelectorAll('.op[data-op]').forEach(el => { el.textContent = '—'; el.className = 'op na'; }));
   </script>
 </body>
 
