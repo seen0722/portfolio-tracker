@@ -26,6 +26,7 @@ jobs:
       - name: Deploy over SSH
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
@@ -34,8 +35,12 @@ jobs:
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${DEPLOY_PORT:-22}" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          # Pinned host keys (captured out-of-band from the server) — StrictHostKeyChecking
+          # then fails closed on any mismatch, so a MitM cannot impersonate the host.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
           ssh -i ~/.ssh/deploy_key -p "${DEPLOY_PORT:-22}" \
             -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts -o CheckHostIP=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             'set -euo pipefail; cd /var/www/portfolio-tracker && git fetch --all --prune && git reset --hard origin/main && bash deploy/redeploy.sh'
