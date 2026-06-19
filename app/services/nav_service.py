@@ -96,20 +96,26 @@ class NavService:
             self.reconstruct(period)
         return self.history()
 
-    def reconstruct(self, period: str = "6mo") -> pd.DataFrame:
+    def series_for(self, period: str = "6mo") -> pd.DataFrame:
+        """Reconstruct the NAV series for a period without persisting it.
+
+        Used by the chart's time-range tabs; valuing *current* holdings back over
+        the window (exact for a snapshot held across the window).
+        """
         state = build_positions(self.ledger.all())
         holdings: List[Holding] = [
             (pos.symbol, pos.quantity, pos.currency) for pos in state.positions
         ]
         if not holdings:
-            return self.history()
-
+            return pd.DataFrame(columns=["date", "total_usd", "total_twd", "daily_return_pct"])
         symbols = [h[0] for h in holdings]
         closes = self.history_provider.get_closes(symbols, period)
         fx = self._fx_usdtwd()
         cash_usd = sum(self._to_usd(amount, ccy, fx) for ccy, amount in state.cash.items())
+        return reconstruct_nav_series(holdings, closes, cash_usd, fx)
 
-        df = reconstruct_nav_series(holdings, closes, cash_usd, fx)
+    def reconstruct(self, period: str = "6mo") -> pd.DataFrame:
+        df = self.series_for(period)
         if not df.empty:
             self.nav_repository.replace_all(df)
             logger.info("Reconstructed %d NAV points over %s", len(df), period)

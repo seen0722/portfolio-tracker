@@ -65,23 +65,33 @@
       <div class="macro-events" id="macroEvents"></div>
     </section>
 
-    <section class="grid reveal d1">
-      <div class="panel">
-        <div class="panel-head"><h2>資產走勢</h2></div>
-        {% if analysis %}
-        <div class="metrics">
-          <div class="metric"><div class="mk">年化波動</div><div class="mv num">{{ "%.1f"|format(analysis.volatility) }}%</div></div>
-          <div class="metric"><div class="mk">Sharpe</div><div class="mv num">{{ "%.2f"|format(analysis.sharpe_ratio) }}</div></div>
-          <div class="metric"><div class="mk">最大回撤</div><div class="mv num neg">{{ "%.1f"|format(analysis.max_drawdown) }}%</div></div>
-        </div>
-        {% endif %}
-        <div class="panel-body" style="padding-top:.25rem"><canvas id="navChart" height="120"></canvas></div>
+    <div class="panel reveal d1">
+      <div class="panel-head"><h2>資產走勢</h2></div>
+      <div class="nav-tabs" id="navTabs">
+        <button type="button" data-range="1w">1周</button>
+        <button type="button" data-range="1m">1月</button>
+        <button type="button" data-range="3m" class="active">3月</button>
+        <button type="button" data-range="6m">6月</button>
+        <button type="button" data-range="1y">1年</button>
+        <button type="button" data-range="2y">2年</button>
       </div>
-      <div class="panel">
-        <div class="panel-head"><h2>資產配置</h2></div>
-        <div class="panel-body"><div style="height:240px"><canvas id="allocChart"></canvas></div></div>
+      {% if analysis %}
+      <div class="metrics">
+        <div class="metric"><div class="mk">年化波動</div><div class="mv num">{{ "%.1f"|format(analysis.volatility) }}%</div></div>
+        <div class="metric"><div class="mk">Sharpe</div><div class="mv num">{{ "%.2f"|format(analysis.sharpe_ratio) }}</div></div>
+        <div class="metric"><div class="mk">最大回撤</div><div class="mv num neg">{{ "%.1f"|format(analysis.max_drawdown) }}%</div></div>
       </div>
-    </section>
+      {% endif %}
+      <div class="panel-body" style="padding-top:.25rem"><canvas id="navChart" height="104"></canvas></div>
+    </div>
+
+    <div class="panel reveal d1" style="margin-top:1.25rem">
+      <div class="panel-head"><h2>資產配置</h2> <span class="alloc-tag">股票/ETFs</span></div>
+      <div class="panel-body alloc-layout">
+        <div class="alloc-chart"><canvas id="allocChart"></canvas></div>
+        <div class="alloc-legend" id="allocLegend"></div>
+      </div>
+    </div>
 
     <div class="table-wrap reveal d2">
       <table>
@@ -115,10 +125,22 @@
   </main>
 
   <script>
-    const navLabels = {{ history_labels | tojson }};
-    const navTotals = {{ history_totals | tojson }};
+    let navLabels = {{ history_labels | tojson }};
+    let navTotals = {{ history_totals | tojson }};
+    const WEEKDAYS = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+    function fmtNavDate(s) {
+      const d = new Date(s + 'T00:00:00');
+      if (isNaN(d.getTime())) return s;
+      return WEEKDAYS[d.getDay()] + ', ' + d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    }
+    function roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath(); ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+    }
     const allocLabels = {{ allocation_labels | tojson }};
     const allocData = {{ allocation_data | tojson }};
+    const allocValues = {{ allocation_values | tojson }};
     const ALLOC_COLORS = ['#2350e8','#07976a','#c5860f','#8b5cf6','#ec4899','#06b6d4','#64748b','#f97316','#14b8a6','#a855f7'];
 
     function hexA(hex, a) {
@@ -140,29 +162,157 @@
       if (navChart) navChart.destroy();
       if (allocChart) allocChart.destroy();
 
+      const navCrosshair = {
+        id: 'navCrosshair',
+        afterDraw(chart) {
+          const act = chart.getActiveElements(); if (!act.length) return;
+          const x = act[0].element.x, { top, bottom } = chart.chartArea, g = chart.ctx;
+          g.save(); g.beginPath(); g.setLineDash([4, 4]); g.lineWidth = 1; g.strokeStyle = c.muted;
+          g.moveTo(x, top); g.lineTo(x, bottom); g.stroke(); g.restore();
+        }
+      };
+      const navPill = {
+        id: 'navPill',
+        afterDatasetsDraw(chart) {
+          const pts = chart.getDatasetMeta(0).data; if (!pts.length) return;
+          const data = chart.data.datasets[0].data, val = data[data.length - 1]; if (val == null) return;
+          const g = chart.ctx, y = pts[pts.length - 1].y, txt = (val / 1000).toFixed(2) + 'K';
+          g.save(); g.font = '700 11px Inter, sans-serif';
+          const w = g.measureText(txt).width + 14, x = chart.chartArea.right + 6;
+          g.fillStyle = c.ink; roundRect(g, x, y - 9, w, 18, 5); g.fill();
+          g.fillStyle = c.surface; g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(txt, x + w / 2, y); g.restore();
+        }
+      };
       navChart = new Chart(document.getElementById('navChart'), {
         type: 'line',
         data: { labels: navLabels, datasets: [{
-          label: '總資產 (USD)', data: navTotals, borderColor: c.accent, borderWidth: 2,
-          fill: true, tension: .3, pointRadius: 0,
-          backgroundColor: (ctx) => { const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 260); g.addColorStop(0, hexA(c.accent, .22)); g.addColorStop(1, hexA(c.accent, 0)); return g; },
+          label: '總值', data: navTotals, borderColor: c.accent, borderWidth: 2.2,
+          fill: true, tension: .28, pointRadius: 0, pointHoverRadius: 5,
+          pointHoverBackgroundColor: c.accent, pointHoverBorderColor: c.surface, pointHoverBorderWidth: 2,
+          backgroundColor: (ctx) => { const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 280); g.addColorStop(0, hexA(c.accent, .20)); g.addColorStop(1, hexA(c.accent, 0)); return g; },
         }]},
-        options: { responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: { x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } },
-                    y: { grid: { color: c.line }, ticks: { callback: v => '$' + (v / 1000).toFixed(0) + 'k' } } } }
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          layout: { padding: { right: 54 } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              padding: 11, cornerRadius: 9, usePointStyle: true,
+              titleFont: { size: 12.5, weight: '700' }, bodyFont: { size: 13, weight: '600' },
+              callbacks: {
+                title: items => fmtNavDate(items[0].label),
+                label: ctx => '   總值    $' + Math.round(ctx.parsed.y).toLocaleString('en-US'),
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: c.muted, font: { size: 11 } } },
+            y: {
+              position: 'right', border: { display: false },
+              grid: { color: c.line, borderDash: [4, 4], drawTicks: false },
+              ticks: { callback: v => (v / 1000).toFixed(0) + 'K', color: c.muted, font: { size: 11 }, padding: 8 }
+            }
+          }
+        },
+        plugins: [navCrosshair, navPill]
       });
+
+      const allocColor = i => ALLOC_COLORS[i % ALLOC_COLORS.length];
+      const fmtUsd0 = v => '$' + Math.round(v).toLocaleString('en-US');
+      const fmtUsd2 = v => '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      const centerText = {
+        id: 'centerText',
+        afterDraw(chart) {
+          const meta = chart.getDatasetMeta(0); if (!meta.data.length) return;
+          const { x, y } = meta.data[0]; const cx = chart.ctx;
+          cx.save(); cx.textAlign = 'center'; cx.textBaseline = 'middle';
+          cx.fillStyle = c.muted; cx.font = '600 13px Inter, "Noto Sans TC", sans-serif';
+          cx.fillText('股票/ETFs', x, y - 13);
+          cx.fillStyle = c.ink; cx.font = '800 21px Inter, "Noto Sans TC", sans-serif';
+          cx.fillText(fmtUsd0(allocValues.reduce((a, b) => a + b, 0)), x, y + 11);
+          cx.restore();
+        }
+      };
+      const outerLabels = {
+        id: 'outerLabels',
+        afterDraw(chart) {
+          const meta = chart.getDatasetMeta(0); if (!meta.data.length) return;
+          const cx = chart.ctx; const sides = { l: [], r: [] };
+          meta.data.forEach((arc, i) => {
+            const p = arc.getProps(['x', 'y', 'outerRadius', 'startAngle', 'endAngle'], true);
+            const mid = (p.startAngle + p.endAngle) / 2, cos = Math.cos(mid), sin = Math.sin(mid);
+            (cos >= 0 ? sides.r : sides.l).push({ i, cos, sin, cx: p.x, cy: p.y, r: p.outerRadius, y: p.y + sin * (p.outerRadius + 14) });
+          });
+          cx.save(); cx.font = '600 11px Inter, "Noto Sans TC", sans-serif';
+          [['l', -1], ['r', 1]].forEach(([key, dir]) => {
+            const arr = sides[key].sort((a, b) => a.y - b.y);
+            for (let k = 1; k < arr.length; k++) if (arr[k].y - arr[k - 1].y < 26) arr[k].y = arr[k - 1].y + 26;
+            arr.forEach(a => {
+              const x0 = a.cx + a.cos * a.r, y0 = a.cy + a.sin * a.r;
+              const xElbow = a.cx + a.cos * (a.r + 14), xEnd = xElbow + dir * 20;
+              cx.strokeStyle = allocColor(a.i); cx.lineWidth = 1.25;
+              cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(xElbow, a.y); cx.lineTo(xEnd, a.y); cx.stroke();
+              cx.textAlign = dir > 0 ? 'left' : 'right'; cx.textBaseline = 'middle';
+              const tx = xEnd + dir * 5;
+              cx.fillStyle = c.ink2; cx.fillText(allocLabels[a.i], tx, a.y - 6);
+              cx.fillStyle = c.muted; cx.fillText(allocData[a.i].toFixed(2) + '%', tx, a.y + 7);
+            });
+          });
+          cx.restore();
+        }
+      };
 
       allocChart = new Chart(document.getElementById('allocChart'), {
         type: 'doughnut',
-        data: { labels: allocLabels, datasets: [{ data: allocData, borderWidth: 2, borderColor: c.surface, backgroundColor: ALLOC_COLORS }] },
-        options: { responsive: true, maintainAspectRatio: false, cutout: '62%',
-          plugins: { legend: { position: 'right', labels: { color: c.ink2, boxWidth: 10, usePointStyle: true, font: { size: 11 } } },
-                     tooltip: { callbacks: { label: ctx => ctx.label + ': ' + ctx.raw + '%' } } } }
+        data: { labels: allocLabels, datasets: [{ data: allocData, borderWidth: 2, borderColor: c.surface, backgroundColor: ALLOC_COLORS, hoverOffset: 6 }] },
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: '64%',
+          layout: { padding: { top: 22, bottom: 22, left: 62, right: 62 } },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              padding: 10, cornerRadius: 8, displayColors: false,
+              titleFont: { size: 13, weight: '700' }, bodyFont: { size: 12 },
+              callbacks: {
+                title: items => items[0].label,
+                label: ctx => fmtUsd2(allocValues[ctx.dataIndex]) + '   (' + allocData[ctx.dataIndex].toFixed(2) + '%)',
+              }
+            }
+          }
+        },
+        plugins: [centerText, outerLabels]
       });
+      buildAllocLegend();
+    }
+
+    function buildAllocLegend() {
+      let html = '<div class="lg-row lg-head"><span>持有證券</span><span class="lg-r">市值</span><span class="lg-r">持倉佔比</span></div>';
+      allocLabels.forEach((lab, i) => {
+        html += '<div class="lg-row">'
+          + '<span class="lg-sym"><span class="lg-dot" style="background:' + ALLOC_COLORS[i % ALLOC_COLORS.length] + '"></span>' + lab + '</span>'
+          + '<span class="lg-r lg-val">$' + allocValues[i].toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</span>'
+          + '<span class="lg-r lg-pct">' + allocData[i].toFixed(2) + '%</span></div>';
+      });
+      document.getElementById('allocLegend').innerHTML = html;
     }
     buildCharts();
     window.addEventListener('themechange', buildCharts);
+
+    const navTabs = document.getElementById('navTabs');
+    if (navTabs) navTabs.addEventListener('click', e => {
+      const btn = e.target.closest('button[data-range]');
+      if (!btn || btn.classList.contains('active')) return;
+      navTabs.querySelectorAll('button').forEach(b => { b.classList.toggle('active', b === btn); b.disabled = true; });
+      fetch('/nav.json?range=' + btn.dataset.range).then(r => r.json()).then(d => {
+        navLabels = d.labels; navTotals = d.totals;
+        navChart.data.labels = navLabels;
+        navChart.data.datasets[0].data = navTotals;
+        navChart.update();
+      }).catch(() => {}).finally(() => navTabs.querySelectorAll('button').forEach(b => { b.disabled = false; }));
+    });
 
     // Market-regime strip (macro): populate after first paint, hide unavailable factors.
     fetch('/macro.json').then(r => r.json()).then(d => {

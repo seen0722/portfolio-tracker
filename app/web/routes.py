@@ -18,6 +18,9 @@ bp = Blueprint("main", __name__)
 
 MAX_HISTORY_POINTS = 90
 
+# Chart time-range tab key -> yfinance period for NAV reconstruction.
+NAV_RANGES = {"1w": "5d", "1m": "1mo", "3m": "3mo", "6m": "6mo", "1y": "1y", "2y": "2y"}
+
 
 def _chart_payload(history_df):
     limited = history_df.tail(MAX_HISTORY_POINTS)
@@ -55,8 +58,14 @@ def dashboard():
         _chart_payload(history_df) if not history_df.empty else ([], [], [])
     )
 
-    allocation_labels = [pos.name for pos in result.positions if pos.portfolio_pct > 0]
-    allocation_data = [round(pos.portfolio_pct, 2) for pos in result.positions if pos.portfolio_pct > 0]
+    _alloc = sorted(
+        (pos for pos in result.positions if pos.portfolio_pct > 0),
+        key=lambda pos: pos.value_usd,
+        reverse=True,
+    )
+    allocation_labels = [pos.name for pos in _alloc]
+    allocation_data = [round(pos.portfolio_pct, 2) for pos in _alloc]
+    allocation_values = [round(pos.value_usd, 2) for pos in _alloc]
 
     return render_template(
         "dashboard.html",
@@ -73,6 +82,7 @@ def dashboard():
         history_returns=chart_returns,
         allocation_labels=allocation_labels,
         allocation_data=allocation_data,
+        allocation_values=allocation_values,
         price_sources=container.price_fetcher.describe_sources(),
     )
 
@@ -109,6 +119,17 @@ def transactions():
 def delete_transaction(txn_id: int):
     container.ledger.delete(txn_id)
     return redirect(url_for("main.transactions"))
+
+
+@bp.route("/nav.json")
+def nav_json():
+    """NAV series for a chart time-range tab (1w/1m/3m/6m/1y/2y)."""
+    period = NAV_RANGES.get(request.args.get("range", "3m"), "3mo")
+    df = container.nav_service.series_for(period)
+    if df.empty:
+        return jsonify({"labels": [], "totals": []})
+    totals = [None if pd.isna(v) else round(float(v), 2) for v in df["total_usd"].tolist()]
+    return jsonify({"labels": df["date"].tolist(), "totals": totals})
 
 
 @bp.route("/capex.json")

@@ -56,6 +56,7 @@
   window.PortfolioTheme = { set: setTheme, current: current, colors: function () {
     var cs = getComputedStyle(root);
     return {
+      ink: cs.getPropertyValue("--ink").trim(),
       ink2: cs.getPropertyValue("--ink-2").trim(),
       muted: cs.getPropertyValue("--muted").trim(),
       line: cs.getPropertyValue("--line").trim(),
