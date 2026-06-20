@@ -207,7 +207,13 @@
             }
           },
           scales: {
-            x: { grid: { display: false }, ticks: { maxTicksLimit: 6, color: c.muted, font: { size: 11 } } },
+            x: {
+              grid: { display: false },
+              ticks: {
+                maxTicksLimit: 6, maxRotation: 0, autoSkip: true, color: c.muted, font: { size: 11 },
+                callback: function (v) { const s = this.getLabelForValue(v); return s ? s.slice(5).replace('-', '/') : s; },
+              }
+            },
             y: {
               position: 'right', border: { display: false },
               grid: { color: c.line, borderDash: [4, 4], drawTicks: false },
@@ -239,6 +245,7 @@
         id: 'outerLabels',
         afterDraw(chart) {
           const meta = chart.getDatasetMeta(0); if (!meta.data.length) return;
+          if (chart.width < 460) return;  // labels crowd on narrow screens — the legend below covers it
           const cx = chart.ctx; const sides = { l: [], r: [] };
           meta.data.forEach((arc, i) => {
             const p = arc.getProps(['x', 'y', 'outerRadius', 'startAngle', 'endAngle'], true);
