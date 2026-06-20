@@ -316,9 +316,10 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .hcard-grid > div { display: flex; flex-direction: column; gap: .18rem; min-width: 0; }
 .hcard-grid .hk { color: var(--muted); font-size: .68rem; }
 .hcard-grid .hv { font-weight: 600; font-size: .95rem; color: var(--ink); }
-/* Placed after the base rule so it wins on mobile (same specificity, later source). */
+/* Placed after the base rule so it wins on mobile (same specificity, later source).
+   Scoped to .holdings-tw so the shared .table-wrap on /transactions stays visible. */
 @media (max-width: 640px) {
-  .table-wrap { display: none; }
+  .holdings-tw { display: none; }
   .holdings-cards { display: flex; flex-direction: column; gap: .7rem; }
 }
 
