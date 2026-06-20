@@ -177,7 +177,7 @@
           const data = chart.data.datasets[0].data, val = data[data.length - 1]; if (val == null) return;
           const g = chart.ctx, y = pts[pts.length - 1].y, txt = (val / 1000).toFixed(2) + 'K';
           g.save(); g.font = '700 11px Inter, sans-serif';
-          const w = g.measureText(txt).width + 14, x = chart.chartArea.right + 6;
+          const w = g.measureText(txt).width + 14, x = chart.width - w - 4;  // right-anchored over the axis
           g.fillStyle = c.ink; roundRect(g, x, y - 9, w, 18, 5); g.fill();
           g.fillStyle = c.surface; g.textAlign = 'center'; g.textBaseline = 'middle';
           g.fillText(txt, x + w / 2, y); g.restore();
@@ -194,7 +194,7 @@
         options: {
           responsive: true, maintainAspectRatio: false,
           interaction: { mode: 'index', intersect: false },
-          layout: { padding: { right: 54 } },
+          layout: { padding: { right: 16 } },
           plugins: {
             legend: { display: false },
             tooltip: {
