@@ -79,10 +79,12 @@
         <span class="corr-hint" id="corrHint">載入中…</span>
       </div>
       <div style="padding:.25rem 1.3rem 1.3rem">
-        <table class="corr-table">
-          <thead><tr><th>因子</th><th>相關係數</th><th>方向</th><th>樣本數</th></tr></thead>
-          <tbody id="corrTable"></tbody>
-        </table>
+        <div style="overflow-x:auto">
+          <table class="corr-table">
+            <thead><tr><th>因子</th><th>相關係數</th><th>方向</th><th>樣本數</th></tr></thead>
+            <tbody id="corrTable"></tbody>
+          </table>
+        </div>
         <div class="corr-hint" style="padding-top:.6rem">相關係數 = 因子日變動 與 對象日報酬 的相關性([-1,1])。負值代表反向(如殖利率↑、組合↓)。僅供脈絡參考,非因果。</div>
       </div>
     </div>
