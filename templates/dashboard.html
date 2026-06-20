@@ -120,6 +120,30 @@
       </table>
     </div>
 
+    <div class="holdings-cards reveal d2">
+      {% for pos in result.positions %}
+      <div class="hcard">
+        <div class="hcard-top">
+          <div class="hcard-id">
+            <span class="row-dot" style="background:{{ allocation_colors.get(pos.name) or 'var(--line-strong)' }}"></span>
+            <div><div class="hcard-sym">{{ pos.name }}</div><div class="hcard-cat">{{ pos.category }} · {{ pos.price_currency or '—' }}</div></div>
+          </div>
+          <div class="hcard-amt">
+            <div class="hcard-val num">${{ "{:,.0f}".format(pos.value_usd) }}</div>
+            <div class="hcard-pct num">{{ "%.1f"|format(pos.portfolio_pct) }}%</div>
+          </div>
+        </div>
+        <div class="hcard-grid">
+          <div><span class="hk">數量</span><span class="hv num">{{ "{:,.2f}".format(pos.quantity) if pos.quantity is not none else "—" }}</span></div>
+          <div><span class="hk">現價</span><span class="hv num">{{ "{:,.2f}".format(pos.unit_price) if pos.unit_price is not none else "—" }}</span></div>
+          <div><span class="hk">成本</span><span class="hv num">{{ "${:,.0f}".format(pos.total_cost_usd) if pos.average_cost is not none else "—" }}</span></div>
+          <div><span class="hk">損益</span><span class="hv num {{ 'pos' if pos.unrealized_pl_usd >= 0 else 'neg' }}">{{ ("${:,.0f}".format(pos.unrealized_pl_usd)) if pos.average_cost is not none else "—" }}</span></div>
+          <div><span class="hk">報酬率</span><span class="hv num {{ 'pos' if pos.roi_pct >= 0 else 'neg' }}">{{ ("%+.1f"|format(pos.roi_pct) ~ "%") if pos.average_cost is not none else "—" }}</span></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
     <footer>⚠️ 訊號與 AI 觀察由量化資料自動彙整,僅供教育參考,不構成投資建議。</footer>
   </main>
 

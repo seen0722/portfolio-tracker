@@ -302,6 +302,26 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .sym-wrap { display: flex; align-items: center; gap: .6rem; }
 .row-dot { width: 9px; height: 9px; border-radius: 3px; flex: none; box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface) 70%, transparent); }
 
+/* Holdings as cards on mobile (a 10-column table never fits a phone) */
+.holdings-cards { display: none; }
+.hcard { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: .95rem 1.05rem; }
+.hcard-top { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; padding-bottom: .75rem; border-bottom: 1px solid var(--line); margin-bottom: .8rem; }
+.hcard-id { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.hcard-sym { font-weight: 700; font-size: 1.08rem; color: var(--ink); line-height: 1.12; }
+.hcard-cat { color: var(--muted); font-size: .67rem; margin-top: .12rem; text-transform: uppercase; letter-spacing: .03em; }
+.hcard-amt { text-align: right; flex: none; }
+.hcard-val { font-weight: 800; font-size: 1.15rem; color: var(--ink); }
+.hcard-pct { color: var(--muted); font-size: .8rem; margin-top: .1rem; }
+.hcard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .85rem .6rem; }
+.hcard-grid > div { display: flex; flex-direction: column; gap: .18rem; min-width: 0; }
+.hcard-grid .hk { color: var(--muted); font-size: .68rem; }
+.hcard-grid .hv { font-weight: 600; font-size: .95rem; color: var(--ink); }
+/* Placed after the base rule so it wins on mobile (same specificity, later source). */
+@media (max-width: 640px) {
+  .table-wrap { display: none; }
+  .holdings-cards { display: flex; flex-direction: column; gap: .7rem; }
+}
+
 /* ---------- load motion (one staged reveal) ---------- */
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 .reveal { animation: rise .6s var(--ease) both; }
