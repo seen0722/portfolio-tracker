@@ -10,6 +10,20 @@ from __future__ import annotations
 import os
 
 
+def _asset_version(static_folder: str) -> str:
+    """Short content hash of the cache-sensitive static assets (CSS/JS)."""
+    import hashlib
+
+    digest = hashlib.sha256()
+    for rel in ("css/app.css", "js/theme.js"):
+        try:
+            with open(os.path.join(static_folder, rel), "rb") as handle:
+                digest.update(handle.read())
+        except OSError:
+            pass
+    return digest.hexdigest()[:10]
+
+
 def create_app():
     from flask import Flask
 
@@ -24,6 +38,16 @@ def create_app():
     from flask_wtf.csrf import CSRFProtect
 
     CSRFProtect(app)
+
+    # Cache-bust static assets: every url_for('static', ...) gets ?v=<hash>, so a
+    # deploy that changes CSS/JS invalidates stale browser caches (phones cache
+    # CSS aggressively — a new ?v= URL bypasses the old cached entry immediately).
+    asset_ver = _asset_version(app.static_folder)
+
+    @app.url_defaults
+    def _add_asset_version(endpoint, values):
+        if endpoint == "static" and "v" not in values:
+            values["v"] = asset_ver
 
     from app.web.routes import bp
 
