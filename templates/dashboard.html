@@ -96,14 +96,16 @@
       <table>
         <thead>
           <tr>
-            <th>標的</th><th>數量</th><th>現價</th><th>市值 (USD)</th><th>成本</th>
-            <th>損益 (USD)</th><th>報酬率</th><th>佔比</th><th>訊號</th>
+            <th class="sortable" data-sort="sym">標的</th><th class="sortable" data-sort="qty">數量</th>
+            <th class="sortable" data-sort="price">現價</th><th class="sortable" data-sort="value">市值 (USD)</th>
+            <th class="sortable" data-sort="cost">成本</th><th class="sortable" data-sort="pnl">損益 (USD)</th>
+            <th class="sortable" data-sort="roi">報酬率</th><th class="sortable" data-sort="pct">佔比</th><th>訊號</th>
             <th>AI 觀察 <span class="badge-ai">BETA</span></th>
           </tr>
         </thead>
         <tbody>
           {% for pos in result.positions %}
-          <tr>
+          <tr data-cat="{{ pos.category }}" data-sym="{{ pos.name }}" data-qty="{{ pos.quantity or 0 }}" data-price="{{ pos.unit_price or 0 }}" data-value="{{ pos.value_usd }}" data-cost="{{ pos.total_cost_usd if pos.average_cost is not none else 0 }}" data-pnl="{{ pos.unrealized_pl_usd if pos.average_cost is not none else 0 }}" data-roi="{{ pos.roi_pct if pos.average_cost is not none else 0 }}" data-pct="{{ pos.portfolio_pct }}">
             <td><span class="sym-wrap"><span class="row-dot" style="background:{{ allocation_colors.get(pos.name) or 'var(--line-strong)' }}"></span><span class="sym">{{ pos.name }}<small class="cat">{{ pos.category }} · {{ pos.price_currency or '—' }}</small></span></span></td>
             <td class="num">{{ "{:,.2f}".format(pos.quantity) if pos.quantity is not none else "—" }}</td>
             <td class="num">{{ "{:,.2f}".format(pos.unit_price) if pos.unit_price is not none else "—" }}</td>
@@ -120,9 +122,17 @@
       </table>
     </div>
 
+    <div class="sort-chips reveal d2" id="sortChips">
+      <span class="sort-label">排序</span>
+      <button type="button" data-sort="value">市值</button>
+      <button type="button" data-sort="pnl">損益</button>
+      <button type="button" data-sort="roi">報酬率</button>
+      <button type="button" data-sort="qty">數量</button>
+      <button type="button" data-sort="sym">代號</button>
+    </div>
     <div class="holdings-cards reveal d2">
       {% for pos in result.positions %}
-      <div class="hcard">
+      <div class="hcard" data-cat="{{ pos.category }}" data-sym="{{ pos.name }}" data-qty="{{ pos.quantity or 0 }}" data-price="{{ pos.unit_price or 0 }}" data-value="{{ pos.value_usd }}" data-cost="{{ pos.total_cost_usd if pos.average_cost is not none else 0 }}" data-pnl="{{ pos.unrealized_pl_usd if pos.average_cost is not none else 0 }}" data-roi="{{ pos.roi_pct if pos.average_cost is not none else 0 }}" data-pct="{{ pos.portfolio_pct }}">
         <div class="hcard-top">
           <div class="hcard-id">
             <span class="row-dot" style="background:{{ allocation_colors.get(pos.name) or 'var(--line-strong)' }}"></span>
@@ -343,6 +353,53 @@
         navChart.update();
       }).catch(() => {}).finally(() => navTabs.querySelectorAll('button').forEach(b => { b.disabled = false; }));
     });
+
+    // ---- holdings sort: table headers + mobile chips, synced; cash pinned last ----
+    (function () {
+      const STR_KEYS = { sym: true };  // everything else is numeric
+      const tbody = document.querySelector('.holdings-tw tbody');
+      const cards = document.querySelector('.holdings-cards');
+      const chips = document.getElementById('sortChips');
+      if (!tbody && !cards) return;
+
+      let state;
+      try { state = JSON.parse(localStorage.getItem('holdingsSort')); } catch (e) { state = null; }
+      if (!state || !state.key) state = { key: 'value', dir: 'desc' };  // default: 市值/佔比 降序
+
+      function cmp(a, b) {
+        const ac = a.dataset.cat === 'cash', bc = b.dataset.cat === 'cash';
+        if (ac !== bc) return ac ? 1 : -1;                       // cash always last
+        const k = state.key, mul = state.dir === 'asc' ? 1 : -1;
+        if (STR_KEYS[k]) return mul * (a.dataset[k] || '').localeCompare(b.dataset[k] || '');
+        return mul * ((parseFloat(a.dataset[k]) || 0) - (parseFloat(b.dataset[k]) || 0));
+      }
+      function apply() {
+        if (tbody) [...tbody.children].sort(cmp).forEach(r => tbody.appendChild(r));
+        if (cards) [...cards.querySelectorAll('.hcard')].sort(cmp).forEach(c => cards.appendChild(c));
+        document.querySelectorAll('th.sortable').forEach(th => {
+          const on = th.dataset.sort === state.key;
+          th.classList.toggle('sort-active', on);
+          th.dataset.dir = on ? state.dir : '';
+        });
+        if (chips) chips.querySelectorAll('button').forEach(b => {
+          const on = b.dataset.sort === state.key;
+          b.classList.toggle('active', on);
+          b.dataset.dir = on ? state.dir : '';
+        });
+        try { localStorage.setItem('holdingsSort', JSON.stringify(state)); } catch (e) {}
+      }
+      function pick(key) {
+        if (state.key === key) state.dir = state.dir === 'asc' ? 'desc' : 'asc';
+        else state = { key: key, dir: key === 'sym' ? 'asc' : 'desc' };
+        apply();
+      }
+      document.querySelectorAll('th.sortable').forEach(th =>
+        th.addEventListener('click', () => pick(th.dataset.sort)));
+      if (chips) chips.addEventListener('click', e => {
+        const b = e.target.closest('button[data-sort]'); if (b) pick(b.dataset.sort);
+      });
+      apply();
+    })();
 
     // Market-regime strip (macro): populate after first paint, hide unavailable factors.
     fetch('/macro.json').then(r => r.json()).then(d => {

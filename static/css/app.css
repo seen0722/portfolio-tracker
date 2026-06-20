@@ -316,11 +316,25 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .hcard-grid > div { display: flex; flex-direction: column; gap: .18rem; min-width: 0; }
 .hcard-grid .hk { color: var(--muted); font-size: .68rem; }
 .hcard-grid .hv { font-weight: 600; font-size: .95rem; color: var(--ink); }
+
+/* Holdings sorting — clickable table headers (desktop) + chips (mobile) */
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; transition: color .15s; }
+th.sortable:hover { color: var(--ink); }
+th.sortable.sort-active { color: var(--accent); }
+th.sortable.sort-active[data-dir="desc"]::after { content: " ▼"; font-size: .7em; }
+th.sortable.sort-active[data-dir="asc"]::after { content: " ▲"; font-size: .7em; }
+.sort-chips { display: none; }  /* desktop sorts via headers */
+.sort-label { color: var(--muted); font-size: .8rem; font-weight: 600; align-self: center; }
+.sort-chips button { border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font: 600 .82rem/1 'Inter', 'Noto Sans TC', sans-serif; padding: .42rem .8rem; border-radius: 999px; cursor: pointer; }
+.sort-chips button.active { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.sort-chips button.active[data-dir="desc"]::after { content: " ▼"; font-size: .72em; }
+.sort-chips button.active[data-dir="asc"]::after { content: " ▲"; font-size: .72em; }
 /* Placed after the base rule so it wins on mobile (same specificity, later source).
    Scoped to .holdings-tw so the shared .table-wrap on /transactions stays visible. */
 @media (max-width: 640px) {
   .holdings-tw { display: none; }
   .holdings-cards { display: flex; flex-direction: column; gap: .7rem; }
+  .sort-chips { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; margin-bottom: .8rem; }
 }
 
 /* ---------- load motion (one staged reveal) ---------- */
